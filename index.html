@@ -1873,7 +1873,7 @@
             showAppAlert('สำเร็จ!', `ลงตารางกิจกรรม "${actName}" เรียบร้อยแล้ว (จำนวน ${countAssigned} ช่อง)`, 'success');
         };
         
-        const days = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'];
+        
         
      
         // ฟังก์ชันวาดตารางทั้งหมดของครูทุกคน (UI ใหม่เหมือนหน้า 4)
@@ -2171,13 +2171,17 @@
         };
 
         // แสดงกล่องตั้งค่าห้องใน Pop-up
+        // แสดงกล่องตั้งค่าห้องใน Pop-up
         window.renderRoomSettings = () => {
             const container = document.getElementById('modalRoomConfigContainer');
             if (!container) return;
             let sys = window.appState.roomSystem || 'fixed';
             let html = '';
 
-            if (!window.appState.roomMappingConfig) window.appState.roomMappingConfig = { classRooms: {}, teacherRooms: {} };
+            // ⚠️ แก้ปัญหา Firebase ลบ Object ที่ว่างเปล่าทิ้ง ทำให้ Error ตอนอ่านค่า
+            if (!window.appState.roomMappingConfig) window.appState.roomMappingConfig = {};
+            if (!window.appState.roomMappingConfig.classRooms) window.appState.roomMappingConfig.classRooms = {};
+            if (!window.appState.roomMappingConfig.teacherRooms) window.appState.roomMappingConfig.teacherRooms = {};
 
             const uniqueTeachers = [];
             const teacherSet = new Set();
@@ -2193,7 +2197,7 @@
                 (window.appState.teachers || []).forEach(t => {
                     if(t.rooms) t.rooms.split(',').forEach(r => { if(r.trim()) classes.add(r.trim()); });
                 });
-                
+
                 html += `<div class="border border-indigo-100 rounded-xl p-4 bg-white shadow-sm h-full flex flex-col">
                     <h4 class="font-bold text-indigo-700 mb-3 flex items-center"><i class="fa-solid fa-users-rectangle mr-2"></i>1. ห้องเรียนประจำ (นร. นั่งประจำที่)</h4>
                     <div class="space-y-2 overflow-y-auto pr-2 flex-grow">`;
@@ -2241,7 +2245,10 @@
 
         // สั่งบันทึกและนำห้องไปใส่ในตาราง
         window.applyRoomAssignments = () => {
-            if(!window.appState.roomMappingConfig) window.appState.roomMappingConfig = { classRooms: {}, teacherRooms: {} };
+            // ⚠️ ป้องกันบั๊ก Firebase อีกจุดก่อนบันทึก
+            if (!window.appState.roomMappingConfig) window.appState.roomMappingConfig = {};
+            if (!window.appState.roomMappingConfig.classRooms) window.appState.roomMappingConfig.classRooms = {};
+            if (!window.appState.roomMappingConfig.teacherRooms) window.appState.roomMappingConfig.teacherRooms = {};
             
             document.querySelectorAll('.class-room-input').forEach(el => {
                 window.appState.roomMappingConfig.classRooms[el.getAttribute('data-class')] = el.value.trim();
