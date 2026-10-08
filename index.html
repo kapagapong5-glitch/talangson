@@ -174,13 +174,25 @@
 
             <!-- Step 3: Fixed Periods -->
             <div id="step3" class="step-content">
-                <h2 class="text-2xl font-bold mb-4 text-gray-700 border-b pb-2"><i class="fa-solid fa-th-umbtack text-blue-600 mr-2"></i>ขั้นที่ 3: กำหนดคาบบังคับ / คาบว่าง</h2>
-                <p class="text-sm text-gray-500 mb-4">คลิกที่ตารางเพื่อล็อกคาบสอนหรือกำหนดให้เป็นคาบว่างสำหรับครูแต่ละท่าน</p>
-                <!-- Grid Placeholder -->
-                <div class="bg-gray-100 p-8 rounded-lg border-2 border-dashed border-gray-300 text-center text-gray-500 h-64 flex flex-col justify-center">
-                    <i class="fa-solid fa-table text-4xl mb-2"></i>
-                    <p>ระบบสร้างตารางแสดงผลครู (สูงสุด 6 คอลัมน์) จะแสดงผลที่นี่</p>
-                    <p class="text-xs mt-2">เมื่อคลิกจะมี Popup ถามว่า "กำหนดวิชา" หรือ "กำหนดคาบว่าง"</p>
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 border-b pb-2">
+                    <h2 class="text-2xl font-bold text-gray-700"><i class="fa-solid fa-th-umbtack text-blue-600 mr-2"></i>ขั้นที่ 3: กำหนดคาบบังคับ / คาบว่าง</h2>
+                    <div class="flex items-center space-x-2 mt-2 md:mt-0">
+                        <label class="text-sm font-medium text-gray-700">จำนวนคอลัมน์ตาราง:</label>
+                        <select id="gridCols" class="border border-gray-300 rounded p-1 text-sm bg-white focus:ring-blue-500 focus:border-blue-500" onchange="renderStep3Grid()">
+                            <option value="1">1 ตาราง/แถว</option>
+                            <option value="2">2 ตาราง/แถว</option>
+                            <option value="3" selected>3 ตาราง/แถว</option>
+                            <option value="4">4 ตาราง/แถว</option>
+                            <option value="5">5 ตาราง/แถว</option>
+                            <option value="6">6 ตาราง/แถว</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-500 mb-4">คลิกที่คาบว่างในตารางของครูเพื่อ <span class="font-bold text-blue-600">กำหนดวิชาบังคับลงในคาบนั้น</span> หรือ <span class="font-bold text-red-500">กำหนดให้เป็นคาบว่าง (ล็อกไม่ให้จัดวิชาลง)</span></p>
+                
+                <!-- คอนเทนเนอร์แสดงตารางครูทั้งหมด -->
+                <div id="teacherGridsContainer" class="grid gap-4 mt-4 overflow-y-auto max-h-[600px] p-2 bg-gray-50 rounded-lg border border-gray-200">
+                    <!-- จะถูกสร้างผ่าน JS -->
                 </div>
             </div>
 
@@ -276,6 +288,47 @@
             </div>
         </div>
 
+        <!-- Modal กำหนดคาบบังคับ (Step 3) -->
+        <div id="assignPeriodModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 relative">
+                <button class="absolute top-4 right-4 text-gray-400 hover:text-gray-600" onclick="closeAssignPeriodModal()"><i class="fa-solid fa-times text-xl"></i></button>
+                <h3 class="text-lg font-bold mb-2 text-gray-800" id="assignModalTitle">จัดการคาบเรียน</h3>
+                <p class="text-sm text-gray-500 mb-4" id="assignModalSubtitle">ครูสมชาย - วันจันทร์ คาบที่ 1 (08:30-09:20)</p>
+                
+                <!-- ซ่อนค่าตัวแปรไว้ใช้ตอนบันทึก -->
+                <input type="hidden" id="assignTeacherName">
+                <input type="hidden" id="assignDayIndex">
+                <input type="hidden" id="assignPeriodIndex">
+                
+                <div class="space-y-4">
+                    <!-- ตัวเลือกที่ 1: กำหนดเป็นคาบว่าง -->
+                    <button onclick="setPeriodAs('empty')" class="w-full flex items-center justify-center space-x-2 bg-red-50 text-red-600 border border-red-200 p-3 rounded-lg hover:bg-red-100 transition">
+                        <i class="fa-solid fa-ban"></i> <span>กำหนดเป็น "คาบว่าง" (ห้ามจัดลง)</span>
+                    </button>
+                    
+                    <div class="relative flex py-2 items-center">
+                        <div class="flex-grow border-t border-gray-300"></div>
+                        <span class="flex-shrink-0 mx-4 text-gray-400 text-xs">หรือเลือกวิชา</span>
+                        <div class="flex-grow border-t border-gray-300"></div>
+                    </div>
+                    
+                    <!-- ตัวเลือกที่ 2: เลือกวิชาที่จะบังคับลง -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">เลือกวิชาและห้องที่ต้องการล็อกไว้คาบนี้</label>
+                        <select id="assignSubjectSelect" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50">
+                            <option value="">-- กรุณาเลือก --</option>
+                            <!-- ดึงวิชาของครูคนนี้มาใส่ -->
+                        </select>
+                    </div>
+                    
+                    <div class="flex justify-between items-center pt-2">
+                        <!-- ปุ่มเคลียร์ค่า (กรณีเคยกำหนดไว้แล้วอยากลบออก) -->
+                        <button onclick="setPeriodAs('clear')" class="text-sm text-gray-500 hover:text-gray-700 underline">ล้างค่าคาบนี้</button>
+                        <button onclick="saveAssignedPeriod()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm">บันทึก</button>
+                    </div>
+                </div>
+            </div>
+        </div>
         
         <!-- Navigation Buttons -->
         <div class="flex justify-between items-center mt-6">
@@ -766,6 +819,208 @@
         // เริ่มต้นการแสดงผลเมื่อเปิดหน้าเว็บ
         window.onload = () => {
             updateUI();
+        };
+
+        // --- ระบบกำหนดคาบบังคับ / คาบว่าง (Step 3) ---
+        
+        const days = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'];
+        
+        // ฟังก์ชันวาดตารางทั้งหมดของครูทุกคน
+        window.renderStep3Grid = () => {
+            const container = document.getElementById('teacherGridsContainer');
+            if(!container) return; // เช็คว่ามีอิลิเมนต์นี้หรือยัง (กรณีหน้าจอไม่ได้รัน)
+            
+            const cols = document.getElementById('gridCols').value || 3;
+            // ตั้งค่า Grid คอลัมน์ด้วย Tailwind
+            container.className = `grid gap-6 mt-4 overflow-y-auto max-h-[600px] p-4 bg-gray-50 rounded-lg border border-gray-200 grid-cols-1 md:grid-cols-2 lg:grid-cols-${cols}`;
+            
+            container.innerHTML = '';
+            
+            if (!window.appState.teachers || window.appState.teachers.length === 0) {
+                container.innerHTML = '<div class="col-span-full text-center text-gray-500 py-10">ยังไม่มีข้อมูลครูผู้สอน กรุณาเพิ่มที่ขั้นที่ 2 ก่อน</div>';
+                return;
+            }
+
+            // จัดกลุ่มครู (เพราะ 1 คนอาจมีหลาย Row ใน Array teachers จากขั้นที่ 2)
+            const groupedTeachers = {};
+            window.appState.teachers.forEach(t => {
+                if(!groupedTeachers[t.name]) groupedTeachers[t.name] = [];
+                groupedTeachers[t.name].push(t);
+            });
+
+            const periodsCount = parseInt(window.appState.config?.periods) || 9;
+            
+            // สร้าง State สำหรับเก็บข้อมูลตารางบังคับ (ถ้ายังไม่มี)
+            if(!window.appState.fixedSchedule) window.appState.fixedSchedule = {};
+
+            // วนลูปวาดตารางของครูแต่ละคน
+            Object.keys(groupedTeachers).forEach(teacherName => {
+                // โครงสร้าง HTML ตาราง 1 อัน
+                let tableHTML = `
+                    <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <h4 class="font-bold text-gray-800 text-center mb-2 bg-blue-100 py-1 rounded">ตารางสอน: ${teacherName}</h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-center border-collapse">
+                                <thead>
+                                    <tr class="bg-gray-100">
+                                        <th class="border p-1 w-12">วัน</th>`;
+                // หัวตารางคาบ
+                for(let p = 1; p <= periodsCount; p++) {
+                    tableHTML += `<th class="border p-1">คาบ ${p}</th>`;
+                }
+                tableHTML += `      </tr>
+                                </thead>
+                                <tbody>`;
+                
+                // วนลูป 5 วัน
+                days.forEach((day, dIndex) => {
+                    tableHTML += `<tr><td class="border p-1 font-semibold bg-gray-50">${day}</td>`;
+                    for(let p = 1; p <= periodsCount; p++) {
+                        // ดึงข้อมูลที่เคยล็อกไว้ (ถ้ามี)
+                        const key = `${teacherName}_${dIndex}_${p}`;
+                        const cellData = window.appState.fixedSchedule[key]; // { type: 'empty' หรือ 'subject', label: 'ชื่อย่อ+ห้อง' }
+                        
+                        let cellContent = '';
+                        let cellClass = 'hover:bg-blue-50 cursor-pointer transition';
+                        
+                        if (cellData) {
+                            if (cellData.type === 'empty') {
+                                cellContent = '<i class="fa-solid fa-ban text-red-400"></i>';
+                                cellClass = 'bg-red-50 cursor-pointer';
+                            } else if (cellData.type === 'subject') {
+                                cellContent = `<span class="font-bold text-blue-700">${cellData.label}</span>`;
+                                cellClass = 'bg-blue-100 cursor-pointer border-blue-300';
+                            }
+                        }
+                        
+                        tableHTML += `<td class="border p-1 h-10 w-16 ${cellClass}" onclick="openAssignModal('${teacherName}', ${dIndex}, ${p})">${cellContent}</td>`;
+                    }
+                    tableHTML += `</tr>`;
+                });
+
+                tableHTML += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>`;
+                
+                container.innerHTML += tableHTML;
+            });
+        };
+
+        // ฟังก์ชันเปิด Modal เลือกคาบ
+        window.openAssignModal = (teacherName, dayIndex, periodIndex) => {
+            const timeStr = window.appState.periodTimes ? window.appState.periodTimes[periodIndex - 1] : "";
+            document.getElementById('assignModalTitle').innerText = `จัดการคาบเรียน`;
+            document.getElementById('assignModalSubtitle').innerText = `${teacherName} - วัน${days[dayIndex]} คาบที่ ${periodIndex} (${timeStr})`;
+            
+            document.getElementById('assignTeacherName').value = teacherName;
+            document.getElementById('assignDayIndex').value = dayIndex;
+            document.getElementById('assignPeriodIndex').value = periodIndex;
+            
+            // สร้าง Dropdown วิชาของครูคนนี้ (รวมทุกวิชาที่เขาสอน และแยกรายห้อง)
+            const select = document.getElementById('assignSubjectSelect');
+            select.innerHTML = '<option value="">-- กรุณาเลือก --</option>';
+            
+            let hasSubjects = false;
+            if(window.appState.teachers) {
+                window.appState.teachers.forEach(t => {
+                    if(t.name === teacherName) {
+                        const rooms = t.rooms ? t.rooms.split(',').map(r => r.trim()) : [];
+                        rooms.forEach(room => {
+                            if(room) {
+                                // เช็คว่าวิชา+ห้องนี้ ถูกจัดลงคาบอื่นของครูคนนี้ไปแล้วกี่ครั้ง เพื่อไม่ให้เลือกเกิน
+                                // (เป็นฟีเจอร์เพิ่มความฉลาด แต่ตอนนี้ให้เลือกได้อิสระไปก่อน)
+                                const val = `${t.subjName} ${room}`;
+                                select.innerHTML += `<option value="${val}">${val} (รหัส: ${t.subjCode})</option>`;
+                                hasSubjects = true;
+                            }
+                        });
+                    }
+                });
+            }
+            
+            if(!hasSubjects) {
+                select.innerHTML += '<option disabled>ไม่พบข้อมูลวิชา/ห้องสอนของครูท่านนี้</option>';
+            }
+
+            // ถ้าคาบนี้เคยมีการตั้งค่าไว้ ให้ดึงมาแสดงใน Dropdown
+            const key = `${teacherName}_${dayIndex}_${periodIndex}`;
+            if(window.appState.fixedSchedule && window.appState.fixedSchedule[key]) {
+                const existingData = window.appState.fixedSchedule[key];
+                if(existingData.type === 'subject') {
+                    select.value = existingData.label;
+                }
+            } else {
+                select.value = "";
+            }
+
+            document.getElementById('assignPeriodModal').classList.remove('hidden');
+        };
+
+        window.closeAssignPeriodModal = () => {
+            document.getElementById('assignPeriodModal').classList.add('hidden');
+        };
+
+        // ฟังก์ชันบันทึกการตั้งค่าลงคาบ
+        window.setPeriodAs = (type) => {
+            const tName = document.getElementById('assignTeacherName').value;
+            const dIdx = document.getElementById('assignDayIndex').value;
+            const pIdx = document.getElementById('assignPeriodIndex').value;
+            const key = `${tName}_${dIdx}_${pIdx}`;
+            
+            if(!window.appState.fixedSchedule) window.appState.fixedSchedule = {};
+
+            if (type === 'empty') {
+                window.appState.fixedSchedule[key] = { type: 'empty' };
+            } else if (type === 'clear') {
+                delete window.appState.fixedSchedule[key];
+            }
+            
+            window.closeAssignPeriodModal();
+            window.renderStep3Grid(); // วาดตารางใหม่
+            window.autoSave();
+        };
+
+        window.saveAssignedPeriod = () => {
+            const selectVal = document.getElementById('assignSubjectSelect').value;
+            if(!selectVal) {
+                alert('กรุณาเลือกวิชาที่จะลงในคาบนี้');
+                return;
+            }
+            
+            const tName = document.getElementById('assignTeacherName').value;
+            const dIdx = document.getElementById('assignDayIndex').value;
+            const pIdx = document.getElementById('assignPeriodIndex').value;
+            const key = `${tName}_${dIdx}_${pIdx}`;
+            
+            if(!window.appState.fixedSchedule) window.appState.fixedSchedule = {};
+            
+            window.appState.fixedSchedule[key] = { type: 'subject', label: selectVal };
+            
+            window.closeAssignPeriodModal();
+            window.renderStep3Grid(); // วาดตารางใหม่
+            window.autoSave();
+        };
+
+        // --- เพิ่มการผูกฟังก์ชัน renderStep3Grid เข้ากับการเปลี่ยนหน้า UI ---
+        // ไปแก้ไขฟังก์ชัน goToStep หรือ updateUI ของเก่า เพื่อให้เรียก renderStep3Grid() เมื่อเข้าหน้า 3
+        const originalUpdateUI = window.updateUI || function(){};
+        window.updateUI = function() {
+            originalUpdateUI();
+            if(window.appState && window.appState.currentStep === 3) {
+                // หน่วงเวลาเล็กน้อยเพื่อให้ HTML แสดงผลก่อนวาด
+                setTimeout(() => { window.renderStep3Grid(); }, 100);
+            }
+        };
+        
+        // ผูกฟังก์ชันนี้ตอนโหลดด้วย
+        const oldRestoreUI2 = window.restoreUIFromState || function(){};
+        window.restoreUIFromState = () => {
+            oldRestoreUI2();
+            if(window.appState && window.appState.currentStep === 3) {
+                setTimeout(() => { window.renderStep3Grid(); }, 100);
+            }
         };
         
     </script>
