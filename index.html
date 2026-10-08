@@ -206,18 +206,23 @@
             <div id="step3" class="step-content">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 border-b pb-2">
                     <h2 class="text-2xl font-bold text-gray-700"><i class="fa-solid fa-th-umbtack text-blue-600 mr-2"></i>ขั้นที่ 3: กำหนดคาบบังคับ / คาบว่าง</h2>
-                    <div class="flex items-center space-x-2 mt-2 md:mt-0">
-                        <label class="text-sm font-medium text-gray-700">จำนวนคอลัมน์ตาราง:</label>
-                        <select id="gridCols" class="border border-gray-300 rounded p-1 text-sm bg-white focus:ring-blue-500 focus:border-blue-500" onchange="renderStep3Grid()">
-                            <option value="1">1 ตาราง/แถว</option>
-                            <option value="2">2 ตาราง/แถว</option>
-                            <option value="3" selected>3 ตาราง/แถว</option>
-                            <option value="4">4 ตาราง/แถว</option>
-                            <option value="5">5 ตาราง/แถว</option>
-                            <option value="6">6 ตาราง/แถว</option>
-                        </select>
+                    <div class="flex flex-wrap items-center gap-2 mt-2 md:mt-0">
+                        <button onclick="openBatchActivityModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition shadow-sm text-sm flex items-center font-medium">
+                            <i class="fa-solid fa-calendar-plus mr-2"></i>กำหนดคาบกิจกรรม / ส่วนกลาง
+                        </button>
+                        
+                        <div class="flex items-center space-x-2 border-l pl-3 border-gray-200">
+                            <label class="text-sm font-medium text-gray-700">มุมมอง:</label>
+                            <select id="gridCols" class="border border-gray-300 rounded p-1.5 text-sm bg-white focus:ring-blue-500 focus:border-blue-500" onchange="renderStep3Grid()">
+                                <option value="1">1 ตาราง/แถว</option>
+                                <option value="2">2 ตาราง/แถว</option>
+                                <option value="3" selected>3 ตาราง/แถว</option>
+                                <option value="4">4 ตาราง/แถว</option>
+                                <option value="5">5 ตาราง/แถว</option>
+                                <option value="6">6 ตาราง/แถว</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
                 <p class="text-sm text-gray-500 mb-4">คลิกที่คาบว่างในตารางของครูเพื่อ <span class="font-bold text-blue-600">กำหนดวิชาบังคับลงในคาบนั้น</span> หรือ <span class="font-bold text-red-500">กำหนดให้เป็นคาบว่าง (ล็อกไม่ให้จัดวิชาลง)</span></p>
                 
                 <!-- คอนเทนเนอร์แสดงตารางครูทั้งหมด -->
@@ -418,6 +423,71 @@
                         <button onclick="setPeriodAs('clear')" class="text-sm text-gray-500 hover:text-gray-700 underline">ล้างค่าคาบนี้</button>
                         <button onclick="saveAssignedPeriod()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm">บันทึก</button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+            <div id="batchActivityModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl p-6 relative max-h-[90vh] flex flex-col my-auto">
+                <button class="absolute top-4 right-4 text-gray-400 hover:text-gray-600" onclick="closeBatchActivityModal()">
+                    <i class="fa-solid fa-times text-xl"></i>
+                </button>
+                
+                <h3 class="text-xl font-bold text-gray-800 mb-1 flex items-center">
+                    <i class="fa-solid fa-calendar-check text-indigo-600 mr-2"></i>กำหนดคาบกิจกรรม / คาบส่วนกลาง
+                </h3>
+                <p class="text-xs text-gray-500 mb-4">กำหนดกิจกรรมที่จัดพร้อมกันหลายคน เช่น เข้าแถวหน้าเสาธง, แนะแนวรวม, โฮมรูม</p>
+                
+                <div class="space-y-4 overflow-y-auto pr-1 flex-grow">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อกิจกรรม / คาบเรียน</label>
+                        <input type="text" id="batchActivityName" placeholder="เช่น กิจกรรมหน้าเสาธง, โฮมรูม, สวดมนต์" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label class="text-sm font-semibold text-gray-700">เลือกวันที่จะลง</label>
+                            <label class="text-xs text-indigo-600 font-medium cursor-pointer hover:underline">
+                                <input type="checkbox" id="checkAllDays" onchange="toggleAllBatchDays(this)" class="rounded text-indigo-600 mr-1">เลือกทุกวัน
+                            </label>
+                        </div>
+                        <div class="grid grid-cols-5 gap-2 bg-gray-50 p-2.5 rounded-lg border border-gray-200 text-sm" id="batchDaysContainer">
+                            <label class="flex items-center space-x-1.5 cursor-pointer"><input type="checkbox" value="0" class="batch-day-check rounded text-indigo-600"><span>จันทร์</span></label>
+                            <label class="flex items-center space-x-1.5 cursor-pointer"><input type="checkbox" value="1" class="batch-day-check rounded text-indigo-600"><span>อังคาร</span></label>
+                            <label class="flex items-center space-x-1.5 cursor-pointer"><input type="checkbox" value="2" class="batch-day-check rounded text-indigo-600"><span>พุธ</span></label>
+                            <label class="flex items-center space-x-1.5 cursor-pointer"><input type="checkbox" value="3" class="batch-day-check rounded text-indigo-600"><span>พฤหัสฯ</span></label>
+                            <label class="flex items-center space-x-1.5 cursor-pointer"><input type="checkbox" value="4" class="batch-day-check rounded text-indigo-600"><span>ศุกร์</span></label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label class="text-sm font-semibold text-gray-700">เลือกคาบเรียน</label>
+                            <label class="text-xs text-indigo-600 font-medium cursor-pointer hover:underline">
+                                <input type="checkbox" id="checkAllPeriods" onchange="toggleAllBatchPeriods(this)" class="rounded text-indigo-600 mr-1">เลือกทุกคาบ
+                            </label>
+                        </div>
+                        <div class="grid grid-cols-4 sm:grid-cols-5 gap-2 bg-gray-50 p-2.5 rounded-lg border border-gray-200 text-sm max-h-32 overflow-y-auto" id="batchPeriodsContainer">
+                            </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label class="text-sm font-semibold text-gray-700">เลือกครูผู้สอนที่เข้าร่วม</label>
+                            <label class="text-xs text-indigo-600 font-medium cursor-pointer hover:underline">
+                                <input type="checkbox" id="checkAllTeachers" onchange="toggleAllBatchTeachers(this)" class="rounded text-indigo-600 mr-1">เลือกครูทุกคน
+                            </label>
+                        </div>
+                        <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-200 max-h-40 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm" id="batchTeachersContainer">
+                            </div>
+                    </div>
+                </div>
+
+                <div class="mt-5 pt-3 border-t border-gray-200 flex justify-end space-x-3">
+                    <button onclick="closeBatchActivityModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition text-sm font-medium">ยกเลิก</button>
+                    <button onclick="applyBatchActivity()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition text-sm font-bold flex items-center">
+                        <i class="fa-solid fa-check mr-1.5"></i>ลงตารางกิจกรรม
+                    </button>
                 </div>
             </div>
         </div>
@@ -1415,6 +1485,8 @@
                         if (key.includes(`_${d}_${p}`)) {
                             let v = schedule[key];
                             if (v.type === 'subject') {
+                                if (v.isActivity) continue; // ข้ามคาบกิจกรรมส่วนกลาง ไม่นับเป็นการชนกัน
+
                                 let parts = v.label.split(' ');
                                 let room = parts.length > 1 ? parts[parts.length - 1] : v.label;
 
@@ -1545,7 +1617,127 @@
             updateUI();
         };
 
+        
+
         // --- ระบบกำหนดคาบบังคับ / คาบว่าง (Step 3) ---
+        // --- ระบบกำหนดคาบกิจกรรม / คาบส่วนกลาง (Batch Activity) ---
+
+        window.openBatchActivityModal = () => {
+            if (!window.appState.teachers || window.appState.teachers.length === 0) {
+                showAppAlert('แจ้งเตือน', 'กรุณาเพิ่มข้อมูลครูผู้สอนที่ขั้นที่ 2 ก่อนครับ', 'warning');
+                return;
+            }
+
+            document.getElementById('batchActivityName').value = '';
+            document.getElementById('checkAllDays').checked = false;
+            document.getElementById('checkAllPeriods').checked = false;
+            document.getElementById('checkAllTeachers').checked = false;
+
+            // รีเซ็ตวัน
+            document.querySelectorAll('.batch-day-check').forEach(cb => cb.checked = false);
+
+            // สร้าง Checkbox คาบเรียนตามจำนวนคาบที่มีอยู่จริง
+            const pCount = parseInt(window.appState.config?.periods) || 9;
+            const pContainer = document.getElementById('batchPeriodsContainer');
+            pContainer.innerHTML = '';
+            for (let p = 1; p <= pCount; p++) {
+                pContainer.innerHTML += `
+                    <label class="flex items-center space-x-1.5 cursor-pointer">
+                        <input type="checkbox" value="${p}" class="batch-period-check rounded text-indigo-600">
+                        <span>คาบ ${p}</span>
+                    </label>
+                `;
+            }
+
+            // สร้าง Checkbox รายชื่อครู (ไม่ซ้ำชื่อ)
+            const tContainer = document.getElementById('batchTeachersContainer');
+            tContainer.innerHTML = '';
+            const uniqueTeacherNames = [...new Set(window.appState.teachers.map(t => t.name))];
+            uniqueTeacherNames.forEach(tName => {
+                tContainer.innerHTML += `
+                    <label class="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white transition">
+                        <input type="checkbox" value="${tName}" class="batch-teacher-check rounded text-indigo-600">
+                        <span class="truncate">${tName}</span>
+                    </label>
+                `;
+            });
+
+            document.getElementById('batchActivityModal').classList.remove('hidden');
+        };
+
+        window.closeBatchActivityModal = () => {
+            document.getElementById('batchActivityModal').classList.add('hidden');
+        };
+
+        // ฟังก์ชันติ๊กเลือกทั้งหมด / ยกเลิกทั้งหมด
+        window.toggleAllBatchDays = (master) => {
+            document.querySelectorAll('.batch-day-check').forEach(cb => cb.checked = master.checked);
+        };
+
+        window.toggleAllBatchPeriods = (master) => {
+            document.querySelectorAll('.batch-period-check').forEach(cb => cb.checked = master.checked);
+        };
+
+        window.toggleAllBatchTeachers = (master) => {
+            document.querySelectorAll('.batch-teacher-check').forEach(cb => cb.checked = master.checked);
+        };
+
+        // ฟังก์ชันสั่งลงตาราง
+        window.applyBatchActivity = () => {
+            const actName = document.getElementById('batchActivityName').value.trim();
+            if (!actName) {
+                showAppAlert('กรุณาระบุข้อมูล', 'กรุณากรอกชื่อกิจกรรม / คาบเรียน', 'warning');
+                return;
+            }
+
+            // ดึงวันที่เลือก
+            const selectedDays = [];
+            document.querySelectorAll('.batch-day-check:checked').forEach(cb => selectedDays.push(parseInt(cb.value)));
+
+            // ดึงคาบที่เลือก
+            const selectedPeriods = [];
+            document.querySelectorAll('.batch-period-check:checked').forEach(cb => selectedPeriods.push(parseInt(cb.value)));
+
+            // ดึงครูที่เลือก
+            const selectedTeachers = [];
+            document.querySelectorAll('.batch-teacher-check:checked').forEach(cb => selectedTeachers.push(cb.value));
+
+            if (selectedDays.length === 0) {
+                showAppAlert('กรุณาระบุข้อมูล', 'กรุณาเลือกวันอย่างน้อย 1 วัน', 'warning');
+                return;
+            }
+            if (selectedPeriods.length === 0) {
+                showAppAlert('กรุณาระบุข้อมูล', 'กรุณาเลือกคาบเรียนอย่างน้อย 1 คาบ', 'warning');
+                return;
+            }
+            if (selectedTeachers.length === 0) {
+                showAppAlert('กรุณาระบุข้อมูล', 'กรุณาเลือกครูผู้สอนอย่างน้อย 1 ท่าน', 'warning');
+                return;
+            }
+
+            if (!window.appState.fixedSchedule) window.appState.fixedSchedule = {};
+
+            let countAssigned = 0;
+            selectedTeachers.forEach(tName => {
+                selectedDays.forEach(d => {
+                    selectedPeriods.forEach(p => {
+                        const key = `${tName}_${d}_${p}`;
+                        // บันทึกเป็น subject พิเศษที่มีธง isActivity: true
+                        window.appState.fixedSchedule[key] = {
+                            type: 'subject',
+                            label: actName,
+                            isActivity: true
+                        };
+                        countAssigned++;
+                    });
+                });
+            });
+
+            closeBatchActivityModal();
+            renderStep3Grid();
+            window.autoSave();
+            showAppAlert('สำเร็จ!', `ลงตารางกิจกรรม "${actName}" เรียบร้อยแล้ว (จำนวน ${countAssigned} ช่อง)`, 'success');
+        };
         
         const days = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'];
         
