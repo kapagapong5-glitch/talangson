@@ -1874,7 +1874,7 @@
         };
         
         
-        
+        const days = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'];
      
         // ฟังก์ชันวาดตารางทั้งหมดของครูทุกคน (UI ใหม่เหมือนหน้า 4)
         window.renderStep3Grid = () => {
@@ -2148,7 +2148,6 @@
 
         
         // --- ระบบกำหนดห้องสอน (Step 5) ---
-
         let currentRoomEditKey = null;
 
         // ฟังก์ชันเปิด/ปิด Modal ตั้งค่าห้อง
@@ -2156,7 +2155,7 @@
             let sys = window.appState.roomSystem || 'fixed';
             const radioBtn = document.querySelector(`input[name="modalRoomSystem"][value="${sys}"]`);
             if(radioBtn) radioBtn.checked = true;
-            
+
             window.renderRoomSettings();
             document.getElementById('roomSettingsModal').classList.remove('hidden');
         };
@@ -2171,14 +2170,13 @@
         };
 
         // แสดงกล่องตั้งค่าห้องใน Pop-up
-        // แสดงกล่องตั้งค่าห้องใน Pop-up
         window.renderRoomSettings = () => {
             const container = document.getElementById('modalRoomConfigContainer');
             if (!container) return;
             let sys = window.appState.roomSystem || 'fixed';
             let html = '';
 
-            // ⚠️ แก้ปัญหา Firebase ลบ Object ที่ว่างเปล่าทิ้ง ทำให้ Error ตอนอ่านค่า
+            // ⚠️ FIX: ป้องกันบั๊ก Firebase ลบ Object ว่าง ทำให้หาค่าไม่เจอ (ต้นเหตุที่ทำให้หน้าขาว)
             if (!window.appState.roomMappingConfig) window.appState.roomMappingConfig = {};
             if (!window.appState.roomMappingConfig.classRooms) window.appState.roomMappingConfig.classRooms = {};
             if (!window.appState.roomMappingConfig.teacherRooms) window.appState.roomMappingConfig.teacherRooms = {};
@@ -2195,7 +2193,7 @@
             if(sys === 'fixed') {
                 let classes = new Set();
                 (window.appState.teachers || []).forEach(t => {
-                    if(t.rooms) t.rooms.split(',').forEach(r => { if(r.trim()) classes.add(r.trim()); });
+                    if(t && t.rooms) t.rooms.split(',').forEach(r => { if(r.trim()) classes.add(r.trim()); });
                 });
 
                 html += `<div class="border border-indigo-100 rounded-xl p-4 bg-white shadow-sm h-full flex flex-col">
@@ -2245,11 +2243,11 @@
 
         // สั่งบันทึกและนำห้องไปใส่ในตาราง
         window.applyRoomAssignments = () => {
-            // ⚠️ ป้องกันบั๊ก Firebase อีกจุดก่อนบันทึก
+            // ⚠️ FIX: ป้องกันบั๊ก Firebase จุดที่ 2 ก่อนจับข้อมูลลงตัวแปร
             if (!window.appState.roomMappingConfig) window.appState.roomMappingConfig = {};
             if (!window.appState.roomMappingConfig.classRooms) window.appState.roomMappingConfig.classRooms = {};
             if (!window.appState.roomMappingConfig.teacherRooms) window.appState.roomMappingConfig.teacherRooms = {};
-            
+
             document.querySelectorAll('.class-room-input').forEach(el => {
                 window.appState.roomMappingConfig.classRooms[el.getAttribute('data-class')] = el.value.trim();
             });
@@ -2288,9 +2286,9 @@
             closeRoomSettingsModal();
             window.renderStep5Grid();
             window.autoSave();
-            showAppAlert('สำเร็จ', 'ลงห้องเรียนในตารางเรียบร้อยแล้ว\nตารางพร้อมให้แก้ไขและระบุห้องเพิ่มเติมได้ทันที', 'success');
+            showAppAlert('สำเร็จ', 'ลงห้องเรียนในตารางเรียบร้อยแล้ว<br>ตารางพร้อมให้แก้ไขและระบุห้องเพิ่มเติมได้ทันที', 'success');
         };
-        
+
         // ฟังก์ชันวาดตารางทั้งหมดของครูทุกคน (แสดงครบทุกคนเสมอ)
         window.renderStep5Grid = () => {
             const container = document.getElementById('step5GridsContainer');
@@ -2312,8 +2310,8 @@
 
             const periodsCount = parseInt(window.appState.config?.periods) || 9;
             
-            // ดึงรายชื่อครูทุกคนแบบไม่ซ้ำ เพื่อให้มั่นใจว่าจะแสดงตารางครบทุกคน
-            const uniqueTeacherNames = [...new Set((window.appState.teachers || []).map(t => t.name))];
+            // ดึงรายชื่อครูทุกคนแบบไม่ซ้ำ
+            const uniqueTeacherNames = [...new Set((window.appState.teachers || []).map(t => t.name).filter(n => n))];
             if (uniqueTeacherNames.length === 0) {
                 container.innerHTML = `<div class="col-span-full text-center text-gray-500 py-10">ไม่พบรายชื่อครูผู้สอน</div>`;
                 return;
@@ -2321,8 +2319,10 @@
 
             const teacherSubjCodes = {};
             (window.appState.teachers || []).forEach(t => {
-                if (t.subjCode) teacherSubjCodes[t.name] = t.subjCode;
+                if (t && t.subjCode) teacherSubjCodes[t.name] = t.subjCode;
             });
+
+            const weekDays = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'];
 
             // วาดตารางของครูทุกคน
             uniqueTeacherNames.forEach(teacherName => {
@@ -2349,7 +2349,7 @@
                 }
                 tableHTML += `</tr></thead><tbody>`;
                 
-                days.forEach((day, dIndex) => {
+                weekDays.forEach((day, dIndex) => {
                     let dayBg = dIndex % 2 === 0 ? "bg-white" : "bg-gray-50";
                     tableHTML += `<tr><td class="border border-gray-200 ${dayBg} p-1 font-bold text-gray-700 text-xs">${day}</td>`;
                     
@@ -2376,7 +2376,6 @@
                                 let cardColor = cellData.isActivity ? "bg-purple-50 border-purple-200" : "bg-indigo-50 border-indigo-200";
                                 let txtColor = cellData.isActivity ? "text-purple-800" : "text-indigo-800";
 
-                                // ถ้ายังไม่ได้กำหนดห้อง (ว่างไว้) จะแสดงเป็นกล่องเส้นประ + ระบุห้อง ให้คลิกกำหนดได้ทันที
                                 let roomBadge = pRoom 
                                     ? `<div class="bg-white border border-orange-300 rounded px-1.5 py-0.5 text-[10px] font-extrabold text-orange-600 cursor-pointer hover:bg-orange-50 hover:border-orange-500 w-11/12 text-center truncate transition shadow-sm" onclick="openRoomPrompt('${key}', '${pRoom}')" title="คลิกเพื่อแก้ไขห้อง">${pRoom}</div>`
                                     : `<div class="bg-white/80 border border-dashed border-gray-400 rounded px-1.5 py-0.5 text-[10px] font-bold text-gray-400 cursor-pointer hover:border-indigo-500 hover:text-indigo-600 hover:bg-white w-11/12 text-center truncate transition" onclick="openRoomPrompt('${key}', '')" title="คลิกเพื่อกำหนดห้อง">+ ระบุห้อง</div>`;
@@ -2432,7 +2431,6 @@
                     for (let key in window.appState.assignedRooms) {
                         if (key.includes(`_${d}_${p}`)) {
                             let roomName = window.appState.assignedRooms[key];
-                            // ข้ามช่องที่ว่างเปล่า หรือสถานที่ส่วนกลางที่ใช้พร้อมกันได้
                             if (roomName && roomName !== "ลานกิจกรรม" && roomName !== "สนาม" && roomName !== "-") {
                                 if (roomUsage[roomName]) {
                                     hasConflict = true;
@@ -2451,7 +2449,7 @@
             }
 
             if (hasConflict) {
-                showAppAlert('ตรวจพบห้องชนกัน', `มีห้องถูกใช้งานซ้ำกันในคาบเดียวกันจำนวน ${conflictCount} คู่ (ไฮไลต์กระพริบสีแดง)\nกรุณาคลิกที่ห้องเพื่อแก้ไข`, 'error');
+                showAppAlert('ตรวจพบห้องชนกัน', `มีห้องถูกใช้งานซ้ำกันในคาบเดียวกันจำนวน ${conflictCount} คู่ (ไฮไลต์กระพริบสีแดง)<br>กรุณาคลิกที่ห้องเพื่อแก้ไข`, 'error');
             } else {
                 showAppAlert('ผ่านการตรวจสอบ', 'ยอดเยี่ยม! ไม่มีห้องเรียนชนกันเลยครับ', 'success');
                 document.getElementById('btnCheckRoomConflict').classList.add('hidden');
