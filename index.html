@@ -211,15 +211,22 @@
         </div>
 
         <!-- Navigation Buttons -->
-        <div class="flex justify-between mt-6">
+        <div class="flex justify-between items-center mt-6">
             <button id="btnPrev" class="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 hidden" onclick="navigate(-1)">
                 <i class="fa-solid fa-chevron-left mr-2"></i>ย้อนกลับ
             </button>
-            <button id="btnNext" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 ml-auto" onclick="navigate(1)">
-                ถัดไป<i class="fa-solid fa-chevron-right ml-2"></i>
-            </button>
+            
+            <div class="flex space-x-3 ml-auto">
+                <!-- ปุ่มบันทึกข้อมูลแบบ Manual -->
+                <button id="btnSave" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 shadow flex items-center" onclick="manualSave()">
+                    <i class="fa-solid fa-floppy-disk mr-2"></i>บันทึกข้อมูล
+                </button>
+                
+                <button id="btnNext" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 shadow" onclick="navigate(1)">
+                    ถัดไป<i class="fa-solid fa-chevron-right ml-2"></i>
+                </button>
+            </div>
         </div>
-    </div>
 
     <!-- Firebase SDK (รูปแบบใช้งานผ่าน CDN ในไฟล์ HTML ธรรมดา) -->
     <script type="module">
@@ -242,19 +249,39 @@
         // State ของแอปพลิเคชัน
         window.appState = {
             currentStep: 1,
-            config: { periods: 8 },
+            config: { periods: 9 },
+            periodTimes: [],
+            gradeLevels: [],
             teachers: [],
-            totalPeriodsRequired: 0 // รวมคาบแบบเรียลไทม์
+            totalPeriodsRequired: 0
         };
 
-        // ฟังก์ชัน Auto Save ไปยัง Firebase
-        let saveTimeout;
-        window.autoSave = function() {
-            clearTimeout(saveTimeout);
-            document.getElementById('saveStatus').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
+        // ฟังก์ชันดึงข้อมูลจากหน้าจอเก็บลง State ก่อนบันทึก
+        window.gatherData = function() {
+            // ดึงจำนวนคาบ
+            window.appState.config.periods = document.getElementById('periodsPerDay').value;
             
-            saveTimeout = setTimeout(() => {
-                set(ref(db, 'scheduleData'), window.appState)
+            // ดึงเวลาแต่ละคาบ
+            window.appState.periodTimes = [];
+            document.querySelectorAll('.period-time-input').forEach(input => {
+                window.appState.periodTimes.push(input.value);
+            });
+
+            // ดึงข้อมูลระดับชั้น
+            window.appState.gradeLevels = [];
+            document.querySelectorAll('.grade-row').forEach(row => {
+                const inputs = row.querySelectorAll('input');
+                window.appState.gradeLevels.push({
+                    name: inputs[0].value,
+                    rooms: parseInt(inputs[1].value) || 0,
+                    lunchPeriod: parseInt(inputs[2].value) || 0
+                });
+            });
+        };
+
+        // ฟังก์ชัน Save เข้าฐานข้อมูล
+        window.saveToFirebase = function() {
+            return set(ref(db, 'scheduleData'), window.appState)
                 .then(() => {
                     document.getElementById('saveStatus').innerHTML = '<i class="fa-solid fa-check text-green-300"></i> บันทึกแล้ว';
                 })
@@ -262,15 +289,48 @@
                     console.error("Error saving data:", error);
                     document.getElementById('saveStatus').innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-300"></i> บันทึกไม่สำเร็จ';
                 });
-            }, 1000); // Debounce 1 วิ
-        }
+        };
+
+        // ฟังก์ชัน Auto Save (หน่วงเวลา 1 วินาที)
+        let saveTimeout;
+        window.autoSave = function() {
+            clearTimeout(saveTimeout);
+            document.getElementById('saveStatus').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
+            
+            saveTimeout = setTimeout(() => {
+                window.gatherData(); // อัปเดตข้อมูลล่าสุดจากหน้าจอก่อน
+                window.saveToFirebase();
+            }, 1000);
+        };
+
+        // ฟังก์ชัน Manual Save (บันทึกทันทีเมื่อกดปุ่ม)
+        window.manualSave = function() {
+            document.getElementById('saveStatus').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
+            window.gatherData();
+            window.saveToFirebase().then(() => {
+                alert('บันทึกข้อมูลลงฐานข้อมูลเรียบร้อยแล้ว!');
+            });
+        };
 
         // ดึงข้อมูลเมื่อโหลดหน้าแรก
         get(ref(db, 'scheduleData')).then((snapshot) => {
             if (snapshot.exists()) {
                 window.appState = snapshot.val();
                 if(!window.appState.currentStep) window.appState.currentStep = 1;
+                
+                // กำหนดตัวเลขคาบเรียนให้ตรงกับฐานข้อมูล
+                if(window.appState.config && window.appState.config.periods) {
+                    document.getElementById('periodsPerDay').value = window.appState.config.periods;
+                }
+                
+                // เรียกฟังก์ชันวาด UI หลังจากได้ข้อมูลแล้ว
+                if(window.restoreUIFromState) {
+                    window.restoreUIFromState();
+                }
                 updateUI();
+            } else {
+                // ถ้าไม่มีข้อมูลในฐานข้อมูลเลย ให้สร้างค่าเริ่มต้น
+                if(window.initDefaultUI) window.initDefaultUI();
             }
         });
     </script>
@@ -336,46 +396,32 @@
             document.getElementById('remainingPeriodsDisplay').innerText = "120"; // ตัวเลขจำลอง
         }
 
-        // ฟังก์ชันสร้างช่องกำหนดเวลาแต่ละคาบโดยอัตโนมัติ (เริ่ม 08:30 คาบละ 50 นาที)
+        // ฟังก์ชันสร้างช่องกำหนดเวลาแต่ละคาบ (ใช้ตอนผู้ใช้ปรับตัวเลข "จำนวนคาบเรียนต่อวัน")
         function generatePeriodTimes() {
             const numPeriods = parseInt(document.getElementById('periodsPerDay').value) || 0;
             const container = document.getElementById('periodTimesContainer');
             
-            // เก็บค่าเดิมที่ผู้ใช้เคยพิมพ์แก้ไว้ก่อน
-            const oldValues = [];
-            document.querySelectorAll('.period-time-input').forEach(input => {
-                oldValues.push(input.value);
-            });
-
             container.innerHTML = '';
-            
             let startHour = 8;
             let startMinute = 30;
 
             for (let i = 1; i <= numPeriods; i++) {
                 let endHour = startHour;
-                let endMinute = startMinute + 50; // คาบละ 50 นาที
+                let endMinute = startMinute + 50; 
                 
-                // ปัดนาทีเป็นชั่วโมงถ้าเกิน 60 นาที
                 if (endMinute >= 60) {
                     endHour += Math.floor(endMinute / 60);
                     endMinute = endMinute % 60;
                 }
                 
-                // จัดรูปแบบ 00:00
                 let timeString = `${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}-${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`;
                 
-                // ถ้ามีค่าที่เคยพิมพ์ไว้อยู่แล้วให้ดึงกลับมา
-                let val = oldValues[i-1] ? oldValues[i-1] : timeString;
-
                 container.innerHTML += `
                     <div class="bg-white border rounded-lg p-2 shadow-sm text-center">
                         <label class="block text-xs font-bold text-blue-600 mb-1">คาบที่ ${i}</label>
-                        <input type="text" class="period-time-input w-full text-center border-b border-gray-200 focus:outline-none focus:border-blue-500 text-sm pb-1" value="${val}" onchange="autoSave()">
+                        <input type="text" class="period-time-input w-full text-center border-b border-gray-200 focus:outline-none focus:border-blue-500 text-sm pb-1" value="${timeString}" onchange="autoSave()">
                     </div>
                 `;
-                
-                // นำเวลาจบคาบนี้ ไปเป็นเวลาเริ่มคาบหน้า
                 startHour = endHour;
                 startMinute = endMinute;
             }
@@ -389,7 +435,7 @@
             newRow.innerHTML = `
                 <div class="flex-1">
                     <label class="text-xs text-gray-500">ระดับชั้น (เช่น ม.3)</label>
-                    <input type="text" placeholder="เช่น ม.3" class="block w-full border rounded p-2 focus:ring-blue-500 focus:border-blue-500" value="${gradeName}" onchange="autoSave()">
+                    <input type="text" class="block w-full border rounded p-2 focus:ring-blue-500 focus:border-blue-500" value="${gradeName}" onchange="autoSave()">
                 </div>
                 <div class="w-24">
                     <label class="text-xs text-gray-500">จำนวนห้อง</label>
@@ -406,15 +452,49 @@
             container.appendChild(newRow);
         }
 
+        // --- ฟังก์ชันฟื้นฟูหน้าจอจาก Firebase ---
+        
+        window.restoreUIFromState = () => {
+            // 1. ฟื้นฟูเวลาคาบเรียน
+            const timeContainer = document.getElementById('periodTimesContainer');
+            timeContainer.innerHTML = '';
+            if (window.appState.periodTimes && window.appState.periodTimes.length > 0) {
+                window.appState.periodTimes.forEach((time, index) => {
+                    timeContainer.innerHTML += `
+                        <div class="bg-white border rounded-lg p-2 shadow-sm text-center">
+                            <label class="block text-xs font-bold text-blue-600 mb-1">คาบที่ ${index + 1}</label>
+                            <input type="text" class="period-time-input w-full text-center border-b border-gray-200 focus:outline-none focus:border-blue-500 text-sm pb-1" value="${time}" onchange="autoSave()">
+                        </div>
+                    `;
+                });
+            } else {
+                generatePeriodTimes(); // ถ้าไม่มีให้สร้างใหม่
+            }
+
+            // 2. ฟื้นฟูข้อมูลระดับชั้น
+            const gradeContainer = document.getElementById('gradeLevelsContainer');
+            gradeContainer.innerHTML = '';
+            if (window.appState.gradeLevels && window.appState.gradeLevels.length > 0) {
+                window.appState.gradeLevels.forEach(grade => {
+                    addGradeLevel(grade.name, grade.rooms, grade.lunchPeriod);
+                });
+            } else {
+                addGradeLevel('ม.1', 3, 5); // ถ้าไม่มีให้สร้างค่าเริ่มต้น
+            }
+            
+            calculateTotalPeriods();
+        };
+
+        // ฟังก์ชันตั้งค่าเริ่มต้นกรณีไม่มีข้อมูลใน Firebase เลย
+        window.initDefaultUI = () => {
+            generatePeriodTimes();
+            addGradeLevel('ม.1', 3, 5);
+            calculateTotalPeriods();
+        };
+
         // เริ่มต้นการแสดงผลเมื่อเปิดหน้าเว็บ
         window.onload = () => {
             updateUI();
-            calculateTotalPeriods();
-            
-            // เรียกสร้างเวลาคาบเรียน
-            generatePeriodTimes();
-            // สร้างแถวระดับชั้นตั้งต้น 1 แถว
-            addGradeLevel('ม.1', 3, 5); 
         };
         
     </script>
