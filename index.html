@@ -114,37 +114,39 @@
             <div id="step2" class="step-content">
                 <h2 class="text-2xl font-bold mb-4 text-gray-700 border-b pb-2"><i class="fa-solid fa-users text-blue-600 mr-2"></i>ขั้นที่ 2: จัดการผู้สอนและวิชา</h2>
                 
-                <div class="flex justify-between mb-4">
-                    <button class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition shadow-sm"><i class="fa-solid fa-file-excel mr-2"></i>อัปโหลด Excel</button>
-                    <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-sm" onclick="addTeacherModal()"><i class="fa-solid fa-user-plus mr-2"></i>เพิ่มครูผู้สอน</button>
+                <div class="flex flex-wrap gap-2 justify-between mb-4">
+                    <div class="flex gap-2">
+                        <button class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition shadow-sm text-sm flex items-center" onclick="downloadTemplate()">
+                            <i class="fa-solid fa-download mr-2"></i>โหลดแบบฟอร์ม
+                        </button>
+                        
+                        <!-- ช่อง Input ซ่อนไว้สำหรับอัปโหลดไฟล์ -->
+                        <input type="file" id="excelUpload" accept=".xlsx, .xls" class="hidden" onchange="handleFileUpload(event)">
+                        <button class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition shadow-sm text-sm flex items-center" onclick="document.getElementById('excelUpload').click()">
+                            <i class="fa-solid fa-file-excel mr-2"></i>อัปโหลด Excel
+                        </button>
+                    </div>
+                    <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-sm text-sm flex items-center" onclick="openTeacherModal()">
+                        <i class="fa-solid fa-user-plus mr-2"></i>เพิ่มครูผู้สอน
+                    </button>
                 </div>
 
-                <!-- Mockup Table -->
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 border rounded-lg">
-                        <thead class="bg-gray-50">
+                <!-- Teacher Table -->
+                <div class="overflow-x-auto max-h-96">
+                    <table class="min-w-full divide-y divide-gray-200 border rounded-lg relative">
+                        <thead class="bg-gray-50 sticky top-0 z-10 shadow-sm">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อครู</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วิชาที่สอน (ย่อ)</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">รหัสวิชา</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">คาบรวม</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ห้องที่สอน</th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">จัดการ</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อครู</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วิชา (ย่อ)</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">รหัสวิชา</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">หน่วยกิต</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">คาบรวม</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ห้องที่สอน</th>
+                                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">จัดการ</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200" id="teacherTableBody">
-                            <!-- Data will be populated here -->
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">ครูสมชาย</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">คณิต (จำกัด 6 ตัว)</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">ค13101</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">4</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">ป.3/1, ป.3/2</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button class="text-indigo-600 hover:text-indigo-900 mr-2"><i class="fa-solid fa-edit"></i></button>
-                                    <button class="text-red-600 hover:text-red-900"><i class="fa-solid fa-trash"></i></button>
-                                </td>
-                            </tr>
+                            <!-- ข้อมูลจะถูกดึงมาใส่ด้วย JS -->
                         </tbody>
                     </table>
                 </div>
@@ -210,6 +212,51 @@
             
         </div>
 
+
+        <!-- Modal เพิ่มครู -->
+        <div id="teacherModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 relative">
+                <button class="absolute top-4 right-4 text-gray-400 hover:text-gray-600" onclick="closeTeacherModal()"><i class="fa-solid fa-times text-xl"></i></button>
+                <h3 class="text-xl font-bold mb-4 text-gray-800" id="modalTitle">เพิ่มข้อมูลครูผู้สอนและรายวิชา</h3>
+                
+                <input type="hidden" id="editTeacherIndex" value="-1">
+                
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">ชื่อครู</label>
+                        <input type="text" id="tName" class="mt-1 block w-full border border-gray-300 rounded p-2 focus:border-blue-500 focus:ring-blue-500" placeholder="เช่น นายสมชาย ใจดี">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">ชื่อวิชา (ย่อไม่เกิน 6 ตัว)</label>
+                            <input type="text" id="tSubjName" maxlength="6" class="mt-1 block w-full border border-gray-300 rounded p-2 focus:border-blue-500 focus:ring-blue-500" placeholder="เช่น คณิต">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">รหัสวิชา</label>
+                            <input type="text" id="tSubjCode" class="mt-1 block w-full border border-gray-300 rounded p-2 focus:border-blue-500 focus:ring-blue-500" placeholder="เช่น ค23101">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">หน่วยกิต (คูณ 2 = จำนวนคาบ)</label>
+                            <input type="number" step="0.5" min="0" id="tCredit" class="mt-1 block w-full border border-gray-300 rounded p-2 focus:border-blue-500 focus:ring-blue-500" placeholder="เช่น 1.5">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">ห้องที่สอน (คั่นด้วยลูกน้ำ)</label>
+                            <input type="text" id="tRooms" class="mt-1 block w-full border border-gray-300 rounded p-2 focus:border-blue-500 focus:ring-blue-500" placeholder="เช่น ป.3/1, ป.3/2">
+                        </div>
+                    </div>
+                    <p class="text-xs text-blue-600 mt-2">* หากครู 1 คนสอนหลายวิชา ให้กดเพิ่มครูคนเดิมแต่เปลี่ยนชื่อวิชาได้เลย</p>
+                </div>
+                
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition" onclick="closeTeacherModal()">ยกเลิก</button>
+                    <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition" onclick="saveTeacher()">บันทึกข้อมูล</button>
+                </div>
+            </div>
+        </div>
+
+        
         <!-- Navigation Buttons -->
         <div class="flex justify-between items-center mt-6">
             <button id="btnPrev" class="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 hidden" onclick="navigate(-1)">
@@ -490,6 +537,162 @@
             generatePeriodTimes();
             addGradeLevel('ม.1', 3, 5);
             calculateTotalPeriods();
+        };
+
+        // --- ระบบจัดการครูผู้สอน (Step 2) ---
+        
+        // ฟังก์ชันดาวน์โหลดแบบฟอร์ม Excel
+        window.downloadTemplate = () => {
+            const ws_data = [
+                ["ชื่อครู", "วิชา (ย่อไม่เกิน 6 ตัว)", "รหัสวิชา", "หน่วยกิต", "ห้องที่สอน (คั่นด้วยลูกน้ำ)"],
+                ["นายสมชาย เรียนดี", "คณิต", "ค23101", 1.5, "ม.3/1, ม.3/2, ม.3/3"],
+                ["นางสาวสมหญิง รักไทย", "ไทย", "ท23101", 1.0, "ม.3/1, ม.3/2"]
+            ];
+            const ws = XLSX.utils.aoa_to_sheet(ws_data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "TeachersTemplate");
+            XLSX.writeFile(wb, "แบบฟอร์มเพิ่มครูผู้สอน.xlsx");
+        };
+
+        // ฟังก์ชันอ่านไฟล์ Excel เมื่อเลือกไฟล์
+        window.handleFileUpload = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet, {header: 1}); 
+                
+                if(!window.appState.teachers) window.appState.teachers = [];
+                
+                let addedCount = 0;
+                // เริ่มอ่านจาก index 1 (ข้ามหัวตาราง)
+                for(let i=1; i<jsonData.length; i++){
+                    let row = jsonData[i];
+                    if(row.length > 0 && row[0]) { // เช็คว่าชื่อครูไม่ว่างเปล่า
+                        window.appState.teachers.push({
+                            name: row[0],
+                            subjName: row[1] ? String(row[1]).substring(0, 6) : "",
+                            subjCode: row[2] || "",
+                            credit: parseFloat(row[3]) || 0,
+                            rooms: row[4] ? String(row[4]) : ""
+                        });
+                        addedCount++;
+                    }
+                }
+                
+                alert(`อัปโหลดและเพิ่มข้อมูลสำเร็จ ${addedCount} รายการ!`);
+                window.renderTeachers();
+                window.autoSave();
+                document.getElementById('excelUpload').value = ""; // รีเซ็ตกล่องเลือกไฟล์
+            };
+            reader.readAsArrayBuffer(file);
+        };
+
+        // ฟังก์ชันวาดตารางแสดงรายชื่อครู
+        window.renderTeachers = () => {
+            const tbody = document.getElementById('teacherTableBody');
+            tbody.innerHTML = '';
+            
+            if(!window.appState.teachers) window.appState.teachers = [];
+            
+            window.appState.teachers.forEach((t, index) => {
+                // คำนวณคาบรวม = (หน่วยกิต * 2) * จำนวนห้องที่สอน
+                const roomCount = t.rooms ? t.rooms.split(',').filter(r => r.trim() !== "").length : 0;
+                const totalPeriods = (t.credit * 2) * roomCount; 
+                
+                tbody.innerHTML += `
+                    <tr class="hover:bg-blue-50 transition">
+                        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${t.name}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${t.subjName}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${t.subjCode}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 text-center">${t.credit}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-blue-600 text-center">${totalPeriods}</td>
+                        <td class="px-4 py-3 text-sm text-gray-500">${t.rooms}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                            <button onclick="editTeacher(${index})" class="text-indigo-600 hover:text-indigo-900 mr-3"><i class="fa-solid fa-edit"></i></button>
+                            <button onclick="deleteTeacher(${index})" class="text-red-600 hover:text-red-900"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+            // หากมีฟังก์ชัน calculateTotalPeriods ให้เรียกใช้เพื่ออัปเดตยอดคงเหลือ
+            if(window.calculateTotalPeriods) window.calculateTotalPeriods();
+        };
+
+        // ฟังก์ชันเปิด-ปิด Modal
+        window.openTeacherModal = () => {
+            document.getElementById('modalTitle').innerText = "เพิ่มข้อมูลครูผู้สอน";
+            document.getElementById('editTeacherIndex').value = "-1";
+            document.getElementById('tName').value = "";
+            document.getElementById('tSubjName').value = "";
+            document.getElementById('tSubjCode').value = "";
+            document.getElementById('tCredit').value = "";
+            document.getElementById('tRooms').value = "";
+            document.getElementById('teacherModal').classList.remove('hidden');
+        };
+
+        window.closeTeacherModal = () => {
+            document.getElementById('teacherModal').classList.add('hidden');
+        };
+
+        window.editTeacher = (index) => {
+            let t = window.appState.teachers[index];
+            document.getElementById('modalTitle').innerText = "แก้ไขข้อมูลครูผู้สอน";
+            document.getElementById('editTeacherIndex').value = index;
+            document.getElementById('tName').value = t.name;
+            document.getElementById('tSubjName').value = t.subjName;
+            document.getElementById('tSubjCode').value = t.subjCode;
+            document.getElementById('tCredit').value = t.credit;
+            document.getElementById('tRooms').value = t.rooms;
+            document.getElementById('teacherModal').classList.remove('hidden');
+        };
+
+        // บันทึกข้อมูลครูลง State และ Firebase
+        window.saveTeacher = () => {
+            let index = parseInt(document.getElementById('editTeacherIndex').value);
+            let teacherData = {
+                name: document.getElementById('tName').value,
+                subjName: document.getElementById('tSubjName').value.substring(0, 6),
+                subjCode: document.getElementById('tSubjCode').value,
+                credit: parseFloat(document.getElementById('tCredit').value) || 0,
+                rooms: document.getElementById('tRooms').value
+            };
+
+            if(!teacherData.name) {
+                alert("กรุณาระบุชื่อครู");
+                return;
+            }
+
+            if(!window.appState.teachers) window.appState.teachers = [];
+
+            if(index >= 0) {
+                window.appState.teachers[index] = teacherData; // แก้ไข
+            } else {
+                window.appState.teachers.push(teacherData); // เพิ่มใหม่
+            }
+
+            window.closeTeacherModal();
+            window.renderTeachers();
+            window.autoSave();
+        };
+
+        window.deleteTeacher = (index) => {
+            if(confirm('ยืนยันการลบข้อมูลรายการนี้ใช่หรือไม่?')) {
+                window.appState.teachers.splice(index, 1);
+                window.renderTeachers();
+                window.autoSave();
+            }
+        };
+
+        // --- แก้ไขฟังก์ชันฟื้นฟูหน้าจอ (restoreUI) เพื่อให้โหลดครูมาแสดงด้วย ---
+        const originalRestoreUI = window.restoreUIFromState;
+        window.restoreUIFromState = () => {
+            if(originalRestoreUI) originalRestoreUI();
+            window.renderTeachers();
         };
 
         // เริ่มต้นการแสดงผลเมื่อเปิดหน้าเว็บ
