@@ -325,11 +325,15 @@
                         <h2 class="text-2xl font-bold text-gray-800 flex items-center">
                             <i class="fa-solid fa-door-open text-indigo-600 mr-3"></i>ขั้นที่ 5: กำหนดห้องสอน
                         </h2>
-                        <p class="text-sm text-gray-500 mt-2"><i class="fa-solid fa-circle-info mr-2"></i>เลือกระบบจัดห้อง และคลิกที่ตารางเพื่อแก้ไขห้องรายคาบได้</p>
+                        <p class="text-sm text-gray-500 mt-2"><i class="fa-solid fa-circle-info mr-2"></i>คลิก <span class="font-bold text-indigo-600">"ตั้งค่าระบบห้อง"</span> เพื่อจัดการห้องประจำ และคลิกที่ตารางเพื่อแก้ไขรายคาบ</p>
                     </div>
                     
                     <div class="flex flex-wrap items-center gap-3 bg-white p-2 rounded-xl shadow-sm border border-gray-200 w-full lg:w-auto">
-                        <div class="flex items-center space-x-2 px-2 border-r border-gray-200 pr-4">
+                        <button onclick="openRoomSettingsModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition shadow flex items-center font-medium">
+                            <i class="fa-solid fa-gear mr-2"></i>ตั้งค่าระบบห้อง
+                        </button>
+
+                        <div class="flex items-center space-x-2 border-l pl-3 border-gray-200">
                             <label class="text-sm text-gray-600 font-medium">มุมมอง:</label>
                             <select id="gridColsStep5" class="border border-gray-300 rounded-md p-1.5 text-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50" onchange="renderStep5Grid()">
                                 <option value="1">1 ตาราง / แถว</option>
@@ -339,27 +343,6 @@
                         </div>
                         <button class="bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-100 transition shadow-sm hidden flex items-center font-bold" id="btnCheckRoomConflict" onclick="checkRoomConflicts()">
                             <i class="fa-solid fa-triangle-exclamation mr-2 animate-pulse"></i>ตรวจห้องชนกัน
-                        </button>
-                    </div>
-                </div>
-
-                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-4">
-                    <div class="flex flex-col sm:flex-row sm:space-x-8 mb-4 border-b pb-4">
-                        <label class="flex items-center space-x-2 cursor-pointer font-bold text-gray-700 mb-2 sm:mb-0">
-                            <input type="radio" name="roomSystem" value="fixed" checked onchange="switchRoomSystem('fixed')" class="w-4 h-4 text-indigo-600">
-                            <span>1. ระบบห้องเรียนประจำ (นร. นั่งประจำที่)</span>
-                        </label>
-                        <label class="flex items-center space-x-2 cursor-pointer font-bold text-gray-700">
-                            <input type="radio" name="roomSystem" value="walk" onchange="switchRoomSystem('walk')" class="w-4 h-4 text-indigo-600">
-                            <span>2. ระบบเดินเรียน (ครูอยู่ประจำห้อง)</span>
-                        </label>
-                    </div>
-                    
-                    <div id="roomConfigContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-64 overflow-y-auto p-3 bg-gray-50 rounded-lg border border-gray-200"></div>
-                    
-                    <div class="mt-4 flex justify-end">
-                        <button onclick="applyRoomAssignments()" class="bg-green-600 text-white px-6 py-2.5 rounded-xl hover:bg-green-700 shadow-sm font-bold flex items-center transition">
-                            <i class="fa-solid fa-wand-magic-sparkles mr-2"></i>ลงห้องเรียนตารางทั้งหมด
                         </button>
                     </div>
                 </div>
@@ -583,6 +566,39 @@
                 <div class="bg-gray-50 px-5 py-3 flex space-x-2">
                     <button onclick="closeCustomPrompt(null)" class="w-1/2 bg-gray-200 text-gray-700 font-medium py-2 rounded-xl hover:bg-gray-300 transition">ยกเลิก</button>
                     <button onclick="closeCustomPrompt(document.getElementById('promptInput').value)" class="w-1/2 bg-indigo-600 text-white font-medium py-2 rounded-xl hover:bg-indigo-700 transition">บันทึก</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="roomSettingsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl p-6 relative max-h-[90vh] flex flex-col my-auto">
+                <button class="absolute top-4 right-4 text-gray-400 hover:text-gray-600" onclick="closeRoomSettingsModal()">
+                    <i class="fa-solid fa-times text-xl"></i>
+                </button>
+                
+                <h3 class="text-xl font-bold text-gray-800 mb-1 flex items-center">
+                    <i class="fa-solid fa-gear text-indigo-600 mr-2"></i>ตั้งค่าระบบจัดห้องเรียน
+                </h3>
+                <p class="text-sm text-gray-500 mb-4">เลือกระบบการเดินเรียนและกำหนดห้องประจำให้ครูหรือนักเรียน ข้อมูลเก่าที่เคยระบุไว้จะไม่สูญหาย</p>
+                
+                <div class="flex flex-col sm:flex-row sm:space-x-8 mb-4 border-b border-gray-200 pb-4">
+                    <label class="flex items-center space-x-2 cursor-pointer font-bold text-gray-700 mb-2 sm:mb-0">
+                        <input type="radio" name="modalRoomSystem" value="fixed" onchange="switchRoomSystem('fixed')" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500">
+                        <span>1. ระบบห้องเรียนประจำ (นร. นั่งประจำที่)</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer font-bold text-gray-700">
+                        <input type="radio" name="modalRoomSystem" value="walk" onchange="switchRoomSystem('walk')" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500">
+                        <span>2. ระบบเดินเรียน (ครูอยู่ประจำห้อง)</span>
+                    </label>
+                </div>
+                
+                <div id="modalRoomConfigContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto p-2 bg-gray-50 rounded-xl border border-gray-200 flex-grow" style="max-h: 50vh;"></div>
+                
+                <div class="mt-5 pt-4 border-t border-gray-200 flex justify-end space-x-3">
+                    <button onclick="closeRoomSettingsModal()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition font-medium">ยกเลิก</button>
+                    <button onclick="applyRoomAssignments()" class="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-sm transition font-bold flex items-center">
+                        <i class="fa-solid fa-wand-magic-sparkles mr-2"></i>บันทึกและลงตาราง
+                    </button>
                 </div>
             </div>
         </div>
@@ -2135,21 +2151,34 @@
 
         let currentRoomEditKey = null;
 
+        // ฟังก์ชันเปิด/ปิด Modal ตั้งค่าห้อง
+        window.openRoomSettingsModal = () => {
+            let sys = window.appState.roomSystem || 'fixed';
+            const radioBtn = document.querySelector(`input[name="modalRoomSystem"][value="${sys}"]`);
+            if(radioBtn) radioBtn.checked = true;
+            
+            window.renderRoomSettings();
+            document.getElementById('roomSettingsModal').classList.remove('hidden');
+        };
+
+        window.closeRoomSettingsModal = () => {
+            document.getElementById('roomSettingsModal').classList.add('hidden');
+        };
+
         window.switchRoomSystem = (type) => {
             window.appState.roomSystem = type;
             window.renderRoomSettings();
         };
 
-        // แสดงกล่องตั้งค่าห้องด้านบน
+        // แสดงกล่องตั้งค่าห้องใน Pop-up
         window.renderRoomSettings = () => {
-            const container = document.getElementById('roomConfigContainer');
+            const container = document.getElementById('modalRoomConfigContainer');
             if (!container) return;
             let sys = window.appState.roomSystem || 'fixed';
             let html = '';
 
             if (!window.appState.roomMappingConfig) window.appState.roomMappingConfig = { classRooms: {}, teacherRooms: {} };
 
-            // กรองรายชื่อครูไม่ให้ซ้ำกัน
             const uniqueTeachers = [];
             const teacherSet = new Set();
             (window.appState.teachers || []).forEach(t => {
@@ -2160,51 +2189,49 @@
             });
 
             if(sys === 'fixed') {
-                // 1. ระบบห้องเรียนประจำ (เด็กนั่งเรียน)
                 let classes = new Set();
                 (window.appState.teachers || []).forEach(t => {
                     if(t.rooms) t.rooms.split(',').forEach(r => { if(r.trim()) classes.add(r.trim()); });
                 });
                 
-                html += `<div class="border rounded-xl p-4 bg-white shadow-sm">
-                    <h4 class="font-bold text-indigo-700 mb-3 flex items-center"><i class="fa-solid fa-users-rectangle mr-2"></i>1. ห้องเรียนประจำ (เด็กนั่งเรียน)</h4>
-                    <div class="space-y-2 max-h-48 overflow-y-auto pr-2">`;
+                html += `<div class="border border-indigo-100 rounded-xl p-4 bg-white shadow-sm h-full flex flex-col">
+                    <h4 class="font-bold text-indigo-700 mb-3 flex items-center"><i class="fa-solid fa-users-rectangle mr-2"></i>1. ห้องเรียนประจำ (นร. นั่งประจำที่)</h4>
+                    <div class="space-y-2 overflow-y-auto pr-2 flex-grow">`;
                 Array.from(classes).sort().forEach(c => {
                     let val = window.appState.roomMappingConfig.classRooms[c] || '';
-                    html += `<div class="flex justify-between items-center bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
+                    html += `<div class="flex justify-between items-center bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-indigo-300 transition">
                         <span class="text-sm font-bold text-gray-700 w-24">${c}</span>
-                        <input type="text" placeholder="เช่น 215" class="border border-gray-300 rounded-md px-2 py-1 text-sm w-32 class-room-input focus:ring-indigo-500 text-center font-medium bg-white" data-class="${c}" value="${val}">
+                        <input type="text" placeholder="เช่น 215" class="border border-gray-300 rounded-md px-2 py-1.5 text-sm w-32 class-room-input focus:ring-indigo-500 focus:border-indigo-500 text-center font-bold text-indigo-700 bg-white" data-class="${c}" value="${val}">
                     </div>`;
                 });
                 html += `</div></div>`;
 
-                html += `<div class="border rounded-xl p-4 bg-white shadow-sm">
-                    <h4 class="font-bold text-orange-600 mb-3 flex items-center"><i class="fa-solid fa-person-running mr-2"></i>2. ข้อยกเว้น: วิชา/ครู (เด็กเดินไปหา)</h4>
-                    <div class="space-y-2 max-h-48 overflow-y-auto pr-2">`;
+                html += `<div class="border border-orange-100 rounded-xl p-4 bg-white shadow-sm h-full flex flex-col">
+                    <h4 class="font-bold text-orange-600 mb-3 flex items-center"><i class="fa-solid fa-person-running mr-2"></i>2. ข้อยกเว้น: วิชา/ครู (นร. เดินไปหา)</h4>
+                    <div class="space-y-2 overflow-y-auto pr-2 flex-grow">`;
                 uniqueTeachers.forEach(t => {
                     let val = window.appState.roomMappingConfig.teacherRooms[t.name] || '';
-                    html += `<div class="flex justify-between items-center bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
+                    html += `<div class="flex justify-between items-center bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-orange-300 transition">
                         <div class="flex flex-col"><span class="text-sm font-bold text-gray-700 truncate w-32">${t.name}</span><span class="text-[10px] text-gray-500">${t.subjName || ''}</span></div>
-                        <input type="text" placeholder="เช่น สนาม" class="border border-gray-300 rounded-md px-2 py-1 text-sm w-24 teacher-room-input focus:ring-indigo-500 text-center font-medium bg-white" data-teacher="${t.name}" value="${val}">
+                        <input type="text" placeholder="เช่น สนาม" class="border border-gray-300 rounded-md px-2 py-1.5 text-sm w-28 teacher-room-input focus:ring-orange-500 focus:border-orange-500 text-center font-bold text-orange-700 bg-white" data-teacher="${t.name}" value="${val}">
                     </div>`;
                 });
                 html += `</div></div>`;
             } else {
-                // 2. ระบบเดินเรียน: กรอกเฉพาะครูที่มีห้องประจำ ที่เหลือปล่อยว่างไว้ได้เลย
-                html += `<div class="border rounded-xl p-4 bg-white shadow-sm col-span-1 md:col-span-2">
-                    <div class="flex flex-col sm:flex-row justify-between sm:items-center mb-3">
+                html += `<div class="border border-indigo-100 rounded-xl p-4 bg-white shadow-sm col-span-1 md:col-span-2 h-full flex flex-col">
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-center mb-4">
                         <h4 class="font-bold text-indigo-700 flex items-center"><i class="fa-solid fa-chalkboard-user mr-2"></i>กำหนดห้องประจำของครู (ระบบเดินเรียน)</h4>
-                        <span class="text-xs text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md mt-1 sm:mt-0 font-medium">* กำหนดเฉพาะครูที่มีห้องประจำ ครูท่านอื่นเว้นว่างไว้เพื่อไปใส่ในตารางด้านล่างได้ครับ</span>
+                        <span class="text-xs text-indigo-600 bg-indigo-50 px-2.5 py-1.5 rounded-md mt-2 sm:mt-0 font-medium border border-indigo-100">* เว้นว่างได้สำหรับครูที่ไม่มีห้องประจำ เพื่อไปใส่ในตารางด้านล่างครับ</span>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-48 overflow-y-auto pr-2">`;
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto pr-2 flex-grow">`;
                 uniqueTeachers.forEach(t => {
                     let val = window.appState.roomMappingConfig.teacherRooms[t.name] || '';
-                    html += `<div class="flex justify-between items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+                    html += `<div class="flex justify-between items-center bg-gray-50 px-3 py-2 rounded-xl border border-gray-200 hover:border-indigo-300 transition shadow-sm">
                         <div class="flex flex-col truncate mr-2">
-                            <span class="text-sm font-bold text-gray-700 truncate">${t.name}</span>
-                            <span class="text-[10px] text-gray-400 truncate">${t.subjName || ''}</span>
+                            <span class="text-sm font-bold text-gray-800 truncate">${t.name}</span>
+                            <span class="text-[10px] text-gray-500 truncate">${t.subjName || ''}</span>
                         </div>
-                        <input type="text" placeholder="เว้นว่างได้" class="border border-gray-300 rounded-md px-2 py-1 text-sm w-24 teacher-room-input focus:ring-indigo-500 text-center font-medium bg-white" data-teacher="${t.name}" value="${val}">
+                        <input type="text" placeholder="เว้นว่างได้" class="border border-gray-300 rounded-md px-2 py-1.5 text-sm w-24 teacher-room-input focus:ring-indigo-500 focus:border-indigo-500 text-center font-bold text-indigo-700 bg-white shadow-inner" data-teacher="${t.name}" value="${val}">
                     </div>`;
                 });
                 html += `</div></div>`;
@@ -2243,18 +2270,20 @@
                         assigned = window.appState.roomMappingConfig.teacherRooms[tName];
                         if(!assigned) assigned = window.appState.roomMappingConfig.classRooms[room];
                     } else {
-                        // เดินเรียน: ดึงเฉพาะครูที่มีห้องประจำ ถ้าไม่มีจะเป็นค่าว่าง ""
                         assigned = window.appState.roomMappingConfig.teacherRooms[tName] || "";
                     }
                     
                     window.appState.assignedRooms[key] = assigned || ""; 
                 }
             }
+            
+            // ปิด Modal และวาดตารางใหม่
+            closeRoomSettingsModal();
             window.renderStep5Grid();
             window.autoSave();
-            showAppAlert('สำเร็จ', 'ลงห้องเรียนในตารางเรียบร้อยแล้ว\nตารางของครูทุกคนพร้อมให้แก้ไขและระบุห้องเพิ่มเติมได้ทันที', 'success');
+            showAppAlert('สำเร็จ', 'ลงห้องเรียนในตารางเรียบร้อยแล้ว\nตารางพร้อมให้แก้ไขและระบุห้องเพิ่มเติมได้ทันที', 'success');
         };
-
+        
         // ฟังก์ชันวาดตารางทั้งหมดของครูทุกคน (แสดงครบทุกคนเสมอ)
         window.renderStep5Grid = () => {
             const container = document.getElementById('step5GridsContainer');
