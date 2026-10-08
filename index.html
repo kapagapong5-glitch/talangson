@@ -2089,6 +2089,7 @@
             }
         };
 
+        
         // --- ระบบกำหนดห้องสอน (Step 5) ---
 
         let currentRoomEditKey = null;
@@ -2098,45 +2099,79 @@
             window.renderRoomSettings();
         };
 
+        // แสดงกล่องตั้งค่าห้องด้านบน
         window.renderRoomSettings = () => {
             const container = document.getElementById('roomConfigContainer');
+            if (!container) return;
             let sys = window.appState.roomSystem || 'fixed';
             let html = '';
 
             if (!window.appState.roomMappingConfig) window.appState.roomMappingConfig = { classRooms: {}, teacherRooms: {} };
 
+            // กรองรายชื่อครูไม่ให้ซ้ำกัน
+            const uniqueTeachers = [];
+            const teacherSet = new Set();
+            (window.appState.teachers || []).forEach(t => {
+                if (t && t.name && !teacherSet.has(t.name)) {
+                    teacherSet.add(t.name);
+                    uniqueTeachers.push(t);
+                }
+            });
+
             if(sys === 'fixed') {
-                // ดึงรายชื่อห้องทั้งหมดแบบไม่ซ้ำ
+                // 1. ระบบห้องเรียนประจำ (เด็กนั่งเรียน)
                 let classes = new Set();
-                window.appState.teachers.forEach(t => {
+                (window.appState.teachers || []).forEach(t => {
                     if(t.rooms) t.rooms.split(',').forEach(r => { if(r.trim()) classes.add(r.trim()); });
                 });
                 
-                html += `<div class="border rounded-xl p-4 bg-white shadow-sm"><h4 class="font-bold text-indigo-700 mb-3 flex items-center"><i class="fa-solid fa-users-rectangle mr-2"></i>1. ห้องเรียนประจำ (เด็กนั่งเรียน)</h4><div class="space-y-2 max-h-48 overflow-y-auto pr-2">`;
+                html += `<div class="border rounded-xl p-4 bg-white shadow-sm">
+                    <h4 class="font-bold text-indigo-700 mb-3 flex items-center"><i class="fa-solid fa-users-rectangle mr-2"></i>1. ห้องเรียนประจำ (เด็กนั่งเรียน)</h4>
+                    <div class="space-y-2 max-h-48 overflow-y-auto pr-2">`;
                 Array.from(classes).sort().forEach(c => {
                     let val = window.appState.roomMappingConfig.classRooms[c] || '';
-                    html += `<div class="flex justify-between items-center bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100"><span class="text-sm font-bold text-gray-700 w-24">${c}</span><input type="text" placeholder="เช่น 215" class="border border-gray-300 rounded-md px-2 py-1 text-sm w-32 class-room-input focus:ring-indigo-500 text-center font-medium" data-class="${c}" value="${val}"></div>`;
+                    html += `<div class="flex justify-between items-center bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
+                        <span class="text-sm font-bold text-gray-700 w-24">${c}</span>
+                        <input type="text" placeholder="เช่น 215" class="border border-gray-300 rounded-md px-2 py-1 text-sm w-32 class-room-input focus:ring-indigo-500 text-center font-medium bg-white" data-class="${c}" value="${val}">
+                    </div>`;
                 });
                 html += `</div></div>`;
 
-                // ดึงรายชื่อครู
-                html += `<div class="border rounded-xl p-4 bg-white shadow-sm"><h4 class="font-bold text-orange-600 mb-3 flex items-center"><i class="fa-solid fa-person-running mr-2"></i>2. ข้อยกเว้น: วิชา/ครู (เด็กเดินไปหา)</h4><div class="space-y-2 max-h-48 overflow-y-auto pr-2">`;
-                window.appState.teachers.forEach(t => {
+                html += `<div class="border rounded-xl p-4 bg-white shadow-sm">
+                    <h4 class="font-bold text-orange-600 mb-3 flex items-center"><i class="fa-solid fa-person-running mr-2"></i>2. ข้อยกเว้น: วิชา/ครู (เด็กเดินไปหา)</h4>
+                    <div class="space-y-2 max-h-48 overflow-y-auto pr-2">`;
+                uniqueTeachers.forEach(t => {
                     let val = window.appState.roomMappingConfig.teacherRooms[t.name] || '';
-                    html += `<div class="flex justify-between items-center bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100"><div class="flex flex-col"><span class="text-sm font-bold text-gray-700 truncate w-32">${t.name}</span><span class="text-[10px] text-gray-500">${t.subjName}</span></div><input type="text" placeholder="เช่น สนาม" class="border border-gray-300 rounded-md px-2 py-1 text-sm w-24 teacher-room-input focus:ring-indigo-500 text-center font-medium" data-teacher="${t.name}" value="${val}"></div>`;
+                    html += `<div class="flex justify-between items-center bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
+                        <div class="flex flex-col"><span class="text-sm font-bold text-gray-700 truncate w-32">${t.name}</span><span class="text-[10px] text-gray-500">${t.subjName || ''}</span></div>
+                        <input type="text" placeholder="เช่น สนาม" class="border border-gray-300 rounded-md px-2 py-1 text-sm w-24 teacher-room-input focus:ring-indigo-500 text-center font-medium bg-white" data-teacher="${t.name}" value="${val}">
+                    </div>`;
                 });
                 html += `</div></div>`;
             } else {
-                html += `<div class="border rounded-xl p-4 bg-white shadow-sm col-span-1 md:col-span-2"><h4 class="font-bold text-indigo-700 mb-3 flex items-center"><i class="fa-solid fa-chalkboard-user mr-2"></i>กำหนดห้องประจำของครู (ระบบเด็กเดินเรียน)</h4><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-48 overflow-y-auto pr-2">`;
-                window.appState.teachers.forEach(t => {
+                // 2. ระบบเดินเรียน: กรอกเฉพาะครูที่มีห้องประจำ ที่เหลือปล่อยว่างไว้ได้เลย
+                html += `<div class="border rounded-xl p-4 bg-white shadow-sm col-span-1 md:col-span-2">
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-center mb-3">
+                        <h4 class="font-bold text-indigo-700 flex items-center"><i class="fa-solid fa-chalkboard-user mr-2"></i>กำหนดห้องประจำของครู (ระบบเดินเรียน)</h4>
+                        <span class="text-xs text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md mt-1 sm:mt-0 font-medium">* กำหนดเฉพาะครูที่มีห้องประจำ ครูท่านอื่นเว้นว่างไว้เพื่อไปใส่ในตารางด้านล่างได้ครับ</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-48 overflow-y-auto pr-2">`;
+                uniqueTeachers.forEach(t => {
                     let val = window.appState.roomMappingConfig.teacherRooms[t.name] || '';
-                    html += `<div class="flex justify-between items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200"><span class="text-sm font-bold text-gray-700 truncate">${t.name}</span><input type="text" placeholder="ระบุห้อง" class="border border-gray-300 rounded-md px-2 py-1 text-sm w-20 teacher-room-input focus:ring-indigo-500 text-center font-medium" data-teacher="${t.name}" value="${val}"></div>`;
+                    html += `<div class="flex justify-between items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+                        <div class="flex flex-col truncate mr-2">
+                            <span class="text-sm font-bold text-gray-700 truncate">${t.name}</span>
+                            <span class="text-[10px] text-gray-400 truncate">${t.subjName || ''}</span>
+                        </div>
+                        <input type="text" placeholder="เว้นว่างได้" class="border border-gray-300 rounded-md px-2 py-1 text-sm w-24 teacher-room-input focus:ring-indigo-500 text-center font-medium bg-white" data-teacher="${t.name}" value="${val}">
+                    </div>`;
                 });
                 html += `</div></div>`;
             }
             container.innerHTML = html;
         };
 
+        // สั่งบันทึกและนำห้องไปใส่ในตาราง
         window.applyRoomAssignments = () => {
             if(!window.appState.roomMappingConfig) window.appState.roomMappingConfig = { classRooms: {}, teacherRooms: {} };
             
@@ -2147,7 +2182,7 @@
                 window.appState.roomMappingConfig.teacherRooms[el.getAttribute('data-teacher')] = el.value.trim();
             });
 
-            window.appState.assignedRooms = {};
+            if (!window.appState.assignedRooms) window.appState.assignedRooms = {};
             const sys = window.appState.roomSystem || 'fixed';
 
             for (let key in window.appState.generatedSchedule) {
@@ -2167,7 +2202,8 @@
                         assigned = window.appState.roomMappingConfig.teacherRooms[tName];
                         if(!assigned) assigned = window.appState.roomMappingConfig.classRooms[room];
                     } else {
-                        assigned = window.appState.roomMappingConfig.teacherRooms[tName];
+                        // เดินเรียน: ดึงเฉพาะครูที่มีห้องประจำ ถ้าไม่มีจะเป็นค่าว่าง ""
+                        assigned = window.appState.roomMappingConfig.teacherRooms[tName] || "";
                     }
                     
                     window.appState.assignedRooms[key] = assigned || ""; 
@@ -2175,37 +2211,51 @@
             }
             window.renderStep5Grid();
             window.autoSave();
-            showAppAlert('สำเร็จ', 'ลงห้องเรียนในตารางเรียบร้อยแล้ว\nคุณสามารถคลิกที่ห้องในตารางเพื่อแก้ไขเฉพาะรายคาบได้', 'success');
+            showAppAlert('สำเร็จ', 'ลงห้องเรียนในตารางเรียบร้อยแล้ว\nตารางของครูทุกคนพร้อมให้แก้ไขและระบุห้องเพิ่มเติมได้ทันที', 'success');
         };
 
+        // ฟังก์ชันวาดตารางทั้งหมดของครูทุกคน (แสดงครบทุกคนเสมอ)
         window.renderStep5Grid = () => {
             const container = document.getElementById('step5GridsContainer');
             if(!container) return;
-            const cols = document.getElementById('gridColsStep5').value || 2; 
+            const cols = document.getElementById('gridColsStep5')?.value || 2; 
             container.className = `grid gap-6 mt-2 p-2 grid-cols-1 xl:grid-cols-${cols}`;
             container.innerHTML = '';
             
-            if (!window.appState.assignedRooms || Object.keys(window.appState.assignedRooms).length === 0) {
-                container.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center h-64 text-gray-400"><i class="fa-solid fa-door-closed text-5xl mb-4 text-gray-300"></i><p class="text-lg font-medium text-gray-500">กรุณากดปุ่ม "ลงห้องเรียนตารางทั้งหมด"</p></div>`;
+            if (!window.appState.assignedRooms) window.appState.assignedRooms = {};
+
+            if (!window.appState.generatedSchedule || Object.keys(window.appState.generatedSchedule).length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full flex flex-col items-center justify-center h-64 text-gray-400">
+                        <i class="fa-solid fa-calendar-xmark text-5xl mb-4 text-gray-300"></i>
+                        <p class="text-lg font-medium text-gray-500">ยังไม่มีข้อมูลตารางสอน กรุณาจัดตารางในขั้นที่ 4 ก่อนครับ</p>
+                    </div>`;
                 return;
             }
 
             const periodsCount = parseInt(window.appState.config?.periods) || 9;
-            const groupedTeachers = {};
-            window.appState.teachers.forEach(t => {
-                if(!groupedTeachers[t.name]) groupedTeachers[t.name] = [];
-                groupedTeachers[t.name].push(t);
+            
+            // ดึงรายชื่อครูทุกคนแบบไม่ซ้ำ เพื่อให้มั่นใจว่าจะแสดงตารางครบทุกคน
+            const uniqueTeacherNames = [...new Set((window.appState.teachers || []).map(t => t.name))];
+            if (uniqueTeacherNames.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center text-gray-500 py-10">ไม่พบรายชื่อครูผู้สอน</div>`;
+                return;
+            }
+
+            const teacherSubjCodes = {};
+            (window.appState.teachers || []).forEach(t => {
+                if (t.subjCode) teacherSubjCodes[t.name] = t.subjCode;
             });
 
-            // สร้างดิกชันนารีเก็บรหัสวิชาของครูแต่ละคนเพื่อเอาไปโชว์
-            const teacherSubjCodes = {};
-            window.appState.teachers.forEach(t => teacherSubjCodes[t.name] = t.subjCode || "");
-
-            Object.keys(groupedTeachers).forEach(teacherName => {
+            // วาดตารางของครูทุกคน
+            uniqueTeacherNames.forEach(teacherName => {
                 let tableHTML = `
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
                         <div class="flex justify-between items-center p-3 bg-indigo-50 border-b border-indigo-100">
-                            <h4 class="font-bold text-indigo-900 text-sm"><i class="fa-solid fa-chalkboard-user mr-2 text-indigo-500"></i>${teacherName}</h4>
+                            <h4 class="font-bold text-indigo-900 text-sm flex items-center">
+                                <i class="fa-solid fa-chalkboard-user mr-2 text-indigo-500"></i>${teacherName}
+                            </h4>
+                            <span class="text-xs text-gray-400 font-medium">คลิกที่ช่องห้องเพื่อแก้ไข</span>
                         </div>
                         <div class="overflow-x-auto p-3 bg-gray-50/30 flex-grow">
                             <table class="w-full text-sm text-center border-collapse min-w-[700px]">
@@ -2213,7 +2263,12 @@
                                     <tr><th class="border border-gray-200 bg-white p-1.5 w-16 text-gray-500 font-medium rounded-tl-lg">วัน</th>`;
                 
                 for(let p = 1; p <= periodsCount; p++) {
-                    tableHTML += `<th class="border border-gray-200 bg-blue-500 text-white p-1.5 w-24 text-xs">คาบ ${p}</th>`;
+                    let timeStr = window.appState.periodTimes ? window.appState.periodTimes[p-1] : "";
+                    tableHTML += `
+                        <th class="border border-gray-200 bg-blue-500 text-white p-1.5 w-24 text-xs">
+                            <div class="font-bold">คาบ ${p}</div>
+                            <div class="text-[9px] font-normal opacity-90">${timeStr}</div>
+                        </th>`;
                 }
                 tableHTML += `</tr></thead><tbody>`;
                 
@@ -2229,16 +2284,25 @@
                         
                         if (cellData) {
                             if (cellData.type === 'empty') {
-                                cellContent = `<div class="flex flex-col items-center justify-center text-gray-400 h-full w-full"><span class="text-xs font-medium">${cellData.label || 'ว่าง'}</span></div>`;
+                                cellContent = `
+                                    <div class="flex flex-col items-center justify-center text-gray-400 h-full w-full">
+                                        <i class="fa-solid fa-mug-hot mb-1 text-gray-300"></i>
+                                        <span class="text-xs font-medium">${cellData.label || 'ว่าง'}</span>
+                                    </div>`;
                             } else if (cellData.type === 'subject') {
                                 let parts = cellData.label.split(' ');
                                 let subjAbbr = parts.length > 1 ? parts.slice(0, -1).join(' ') : cellData.label; 
                                 let room = parts.length > 1 ? parts[parts.length - 1] : "";
                                 let subjCode = cellData.isActivity ? "" : (teacherSubjCodes[teacherName] || "");
-                                let pRoom = window.appState.assignedRooms[key] || "";
+                                let pRoom = (window.appState.assignedRooms && window.appState.assignedRooms[key]) ? window.appState.assignedRooms[key] : "";
 
                                 let cardColor = cellData.isActivity ? "bg-purple-50 border-purple-200" : "bg-indigo-50 border-indigo-200";
                                 let txtColor = cellData.isActivity ? "text-purple-800" : "text-indigo-800";
+
+                                // ถ้ายังไม่ได้กำหนดห้อง (ว่างไว้) จะแสดงเป็นกล่องเส้นประ + ระบุห้อง ให้คลิกกำหนดได้ทันที
+                                let roomBadge = pRoom 
+                                    ? `<div class="bg-white border border-orange-300 rounded px-1.5 py-0.5 text-[10px] font-extrabold text-orange-600 cursor-pointer hover:bg-orange-50 hover:border-orange-500 w-11/12 text-center truncate transition shadow-sm" onclick="openRoomPrompt('${key}', '${pRoom}')" title="คลิกเพื่อแก้ไขห้อง">${pRoom}</div>`
+                                    : `<div class="bg-white/80 border border-dashed border-gray-400 rounded px-1.5 py-0.5 text-[10px] font-bold text-gray-400 cursor-pointer hover:border-indigo-500 hover:text-indigo-600 hover:bg-white w-11/12 text-center truncate transition" onclick="openRoomPrompt('${key}', '')" title="คลิกเพื่อกำหนดห้อง">+ ระบุห้อง</div>`;
 
                                 cellContent = `
                                     <div class="w-full h-full p-0.5">
@@ -2246,9 +2310,7 @@
                                             <span class="font-extrabold ${txtColor} text-[11px] leading-none mb-0.5">${subjAbbr}</span>
                                             ${subjCode ? `<span class="text-[9px] text-gray-500 font-bold leading-none mb-0.5">${subjCode}</span>` : ''}
                                             <span class="text-[10px] ${txtColor} font-bold opacity-80 leading-none mb-1">${room}</span>
-                                            <div class="bg-white border border-gray-300 rounded px-1 py-0.5 text-[10px] font-extrabold text-orange-600 cursor-pointer hover:bg-orange-50 hover:border-orange-400 w-11/12 text-center truncate transition shadow-sm" onclick="openRoomPrompt('${key}', '${pRoom}')" title="คลิกเพื่อแก้ไขห้อง">
-                                                ${pRoom || 'ระบุห้อง'}
-                                            </div>
+                                            ${roomBadge}
                                         </div>
                                     </div>`;
                             }
@@ -2272,6 +2334,7 @@
         window.closeCustomPrompt = (newRoomVal) => {
             document.getElementById('customPromptModal').classList.add('hidden');
             if (newRoomVal !== null && currentRoomEditKey) {
+                if (!window.appState.assignedRooms) window.appState.assignedRooms = {};
                 window.appState.assignedRooms[currentRoomEditKey] = newRoomVal.trim();
                 window.renderStep5Grid();
                 window.autoSave();
@@ -2292,7 +2355,7 @@
                     for (let key in window.appState.assignedRooms) {
                         if (key.includes(`_${d}_${p}`)) {
                             let roomName = window.appState.assignedRooms[key];
-                            // ข้ามช่องที่ว่างเปล่า หรือชื่อห้องที่ใช้ร่วมกันได้ (เช่น สนาม, ลานกิจกรรม)
+                            // ข้ามช่องที่ว่างเปล่า หรือสถานที่ส่วนกลางที่ใช้พร้อมกันได้
                             if (roomName && roomName !== "ลานกิจกรรม" && roomName !== "สนาม" && roomName !== "-") {
                                 if (roomUsage[roomName]) {
                                     hasConflict = true;
@@ -2313,12 +2376,12 @@
             if (hasConflict) {
                 showAppAlert('ตรวจพบห้องชนกัน', `มีห้องถูกใช้งานซ้ำกันในคาบเดียวกันจำนวน ${conflictCount} คู่ (ไฮไลต์กระพริบสีแดง)\nกรุณาคลิกที่ห้องเพื่อแก้ไข`, 'error');
             } else {
-                showAppAlert('ผ่านการตรวจสอบ', 'ยอดเยี่ยม! ไม่มีห้องเรียนชนกันเลย', 'success');
+                showAppAlert('ผ่านการตรวจสอบ', 'ยอดเยี่ยม! ไม่มีห้องเรียนชนกันเลยครับ', 'success');
                 document.getElementById('btnCheckRoomConflict').classList.add('hidden');
             }
         };
 
-        // อัปเดตผูกฟังก์ชัน Render ขั้นที่ 5 กับการเปลี่ยนหน้า UI
+        // ผูกฟังก์ชัน Render ขั้นที่ 5 กับการเปลี่ยนหน้า UI
         const originalUpdateUI4 = window.updateUI || function(){};
         window.updateUI = function() {
             originalUpdateUI4();
