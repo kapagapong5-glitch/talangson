@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจัดตารางสอนแบบมืออาชีพ</title>
+    <!-- Tailwind CSS สำหรับ UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome สำหรับไอคอน -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS สำหรับ Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- jsPDF สำหรับออกรายงาน -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Prompt', sans-serif; background-color: #f3f4f6; }
+        .step-content { display: none; }
+        .step-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .drag-over { border: 2px dashed #3b82f6; background-color: #eff6ff; }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- Navbar -->
+    <nav class="bg-blue-700 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fa-solid fa-calendar-days text-2xl mr-3"></i>
+                    <span class="font-bold text-xl">Smart Timetable</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span id="saveStatus" class="text-sm text-blue-200"><i class="fa-solid fa-cloud"></i> เชื่อมต่อแล้ว</span>
+                    <!-- แสดงจำนวนคาบที่เหลือใน Header เสมอ -->
+                    <div class="bg-blue-800 px-4 py-1 rounded-full text-sm font-semibold border border-blue-600">
+                        คาบสอนคงเหลือ: <span id="remainingPeriodsDisplay" class="text-yellow-300 text-lg">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Progress Stepper -->
+        <div class="mb-8 bg-white p-4 rounded-xl shadow-sm">
+            <div class="flex items-center justify-between relative">
+                <div class="absolute left-0 top-1/2 transform -translate-y-1/2 w-full h-1 bg-gray-200 z-0"></div>
+                <div class="absolute left-0 top-1/2 transform -translate-y-1/2 h-1 bg-blue-600 z-0 transition-all duration-300" id="progressLine" style="width: 0%;"></div>
+                
+                <!-- Steps Indicators -->
+                <div class="step-indicator z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(1)">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-blue-600 text-white ring-4 ring-white" id="indicator-1">1</div>
+                    <span class="text-xs mt-2 font-medium">ข้อมูลพื้นฐาน</span>
+                </div>
+                <div class="step-indicator z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(2)">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white" id="indicator-2">2</div>
+                    <span class="text-xs mt-2 font-medium">จัดการครูผู้สอน</span>
+                </div>
+                <div class="step-indicator z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(3)">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white" id="indicator-3">3</div>
+                    <span class="text-xs mt-2 font-medium">กำหนดคาบบังคับ</span>
+                </div>
+                <div class="step-indicator z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(4)">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white" id="indicator-4">4</div>
+                    <span class="text-xs mt-2 font-medium">จัดตารางสอน</span>
+                </div>
+                <div class="step-indicator z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(5)">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white" id="indicator-5">5</div>
+                    <span class="text-xs mt-2 font-medium">ดาวน์โหลด</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Forms Container -->
+        <div class="bg-white rounded-xl shadow-md p-6 min-h-[500px]">
+            
+            <!-- Step 1: Basic Info -->
+            <div id="step1" class="step-content active">
+                <h2 class="text-2xl font-bold mb-4 text-gray-700 border-b pb-2"><i class="fa-solid fa-gear text-blue-600 mr-2"></i>ขั้นที่ 1: กำหนดข้อมูลพื้นฐาน</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <label class="block text-sm font-medium text-gray-700">จำนวนคาบเรียนต่อวัน</label>
+                        <input type="number" id="periodsPerDay" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-gray-50 border p-2" value="8" onchange="autoSave()">
+                    </div>
+                    <!-- จำลองการเพิ่มชั้นเรียน -->
+                    <div class="space-y-4 col-span-2">
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="block text-sm font-medium text-gray-700">กำหนดชั้นเรียนและห้อง</label>
+                            <button class="bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 text-sm"><i class="fa-solid fa-plus mr-1"></i>เพิ่มระดับชั้น</button>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <div class="flex space-x-4 items-end">
+                                <div class="flex-1">
+                                    <label class="text-xs text-gray-500">ระดับชั้น</label>
+                                    <input type="text" placeholder="เช่น ป.3" class="block w-full border rounded p-2" value="ป.3">
+                                </div>
+                                <div class="w-24">
+                                    <label class="text-xs text-gray-500">จำนวนห้อง</label>
+                                    <input type="number" class="block w-full border rounded p-2" value="3">
+                                </div>
+                                <div class="flex-1">
+                                    <label class="text-xs text-gray-500">คาบพักเที่ยง (คาบที่)</label>
+                                    <input type="number" class="block w-full border rounded p-2" value="4">
+                                </div>
+                                <button class="bg-red-100 text-red-600 p-2 rounded hover:bg-red-200"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Teacher Setup -->
+            <div id="step2" class="step-content">
+                <h2 class="text-2xl font-bold mb-4 text-gray-700 border-b pb-2"><i class="fa-solid fa-users text-blue-600 mr-2"></i>ขั้นที่ 2: จัดการผู้สอนและวิชา</h2>
+                
+                <div class="flex justify-between mb-4">
+                    <button class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition shadow-sm"><i class="fa-solid fa-file-excel mr-2"></i>อัปโหลด Excel</button>
+                    <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-sm" onclick="addTeacherModal()"><i class="fa-solid fa-user-plus mr-2"></i>เพิ่มครูผู้สอน</button>
+                </div>
+
+                <!-- Mockup Table -->
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 border rounded-lg">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อครู</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วิชาที่สอน (ย่อ)</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">รหัสวิชา</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">คาบรวม</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ห้องที่สอน</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200" id="teacherTableBody">
+                            <!-- Data will be populated here -->
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">ครูสมชาย</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">คณิต (จำกัด 6 ตัว)</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">ค13101</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">4</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">ป.3/1, ป.3/2</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <button class="text-indigo-600 hover:text-indigo-900 mr-2"><i class="fa-solid fa-edit"></i></button>
+                                    <button class="text-red-600 hover:text-red-900"><i class="fa-solid fa-trash"></i></button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Step 3: Fixed Periods -->
+            <div id="step3" class="step-content">
+                <h2 class="text-2xl font-bold mb-4 text-gray-700 border-b pb-2"><i class="fa-solid fa-th-umbtack text-blue-600 mr-2"></i>ขั้นที่ 3: กำหนดคาบบังคับ / คาบว่าง</h2>
+                <p class="text-sm text-gray-500 mb-4">คลิกที่ตารางเพื่อล็อกคาบสอนหรือกำหนดให้เป็นคาบว่างสำหรับครูแต่ละท่าน</p>
+                <!-- Grid Placeholder -->
+                <div class="bg-gray-100 p-8 rounded-lg border-2 border-dashed border-gray-300 text-center text-gray-500 h-64 flex flex-col justify-center">
+                    <i class="fa-solid fa-table text-4xl mb-2"></i>
+                    <p>ระบบสร้างตารางแสดงผลครู (สูงสุด 6 คอลัมน์) จะแสดงผลที่นี่</p>
+                    <p class="text-xs mt-2">เมื่อคลิกจะมี Popup ถามว่า "กำหนดวิชา" หรือ "กำหนดคาบว่าง"</p>
+                </div>
+            </div>
+
+            <!-- Step 4: Schedule Generation (Drag & Drop) -->
+            <div id="step4" class="step-content">
+                <div class="flex justify-between items-center mb-4 border-b pb-2">
+                    <h2 class="text-2xl font-bold text-gray-700"><i class="fa-solid fa-wand-magic-sparkles text-blue-600 mr-2"></i>ขั้นที่ 4: จัดตารางสอน</h2>
+                    <button class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shadow flex items-center" id="btnCalculate">
+                        <i class="fa-solid fa-calculator mr-2"></i>สุ่มตาราง (Auto)
+                    </button>
+                </div>
+                
+                <div class="bg-gray-100 p-4 rounded-lg border border-gray-300 h-96 overflow-y-auto relative">
+                    <!-- จำลอง Drag and Drop Card -->
+                    <p class="text-center text-gray-500 mt-10">
+                        พื้นที่ระบบ Drag & Drop สลับคาบเรียน<br>
+                        <span class="text-sm text-red-500 mt-2 block">* หากมีการลากสลับ ระบบจะบังคับให้กดคำนวณใหม่เพื่อเช็คการชนกัน</span>
+                    </p>
+                    <div class="mt-4 grid grid-cols-5 gap-2">
+                        <div class="bg-white p-2 border rounded shadow-sm text-center text-sm cursor-move hover:bg-blue-50" draggable="true">คณิต ป.3/1<br><span class="text-xs text-gray-400">ครูสมชาย</span></div>
+                        <div class="bg-white p-2 border rounded shadow-sm text-center text-sm cursor-move hover:bg-blue-50" draggable="true">ไทย ป.3/1<br><span class="text-xs text-gray-400">ครูสมหญิง</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 5: Export -->
+            <div id="step5" class="step-content">
+                <h2 class="text-2xl font-bold mb-4 text-gray-700 border-b pb-2"><i class="fa-solid fa-download text-blue-600 mr-2"></i>ขั้นที่ 5: ส่งออกตารางสอน</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
+                    <div class="border rounded-xl p-6 bg-gray-50 text-center hover:shadow-md transition">
+                        <i class="fa-solid fa-file-pdf text-red-500 text-5xl mb-4"></i>
+                        <h3 class="text-lg font-bold mb-2">ดาวน์โหลดเป็น PDF</h3>
+                        <label class="block text-sm text-gray-600 mb-2">จำนวนตารางต่อหน้า (A4)</label>
+                        <select class="block w-full border rounded p-2 mb-4">
+                            <option>1 ตาราง / หน้า</option>
+                            <option>2 ตาราง / หน้า</option>
+                            <option>4 ตาราง / หน้า</option>
+                        </select>
+                        <button class="w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">Export PDF</button>
+                    </div>
+                    <div class="border rounded-xl p-6 bg-gray-50 text-center hover:shadow-md transition">
+                        <i class="fa-solid fa-file-excel text-green-600 text-5xl mb-4"></i>
+                        <h3 class="text-lg font-bold mb-2">ดาวน์โหลดเป็น Excel</h3>
+                        <p class="text-sm text-gray-500 mb-6 mt-4">ดาวน์โหลดข้อมูลตารางสอนทั้งหมดเป็นไฟล์ Excel แยกตามรายบุคคลหรือรายห้องเรียน</p>
+                        <button class="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Export Excel</button>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="flex justify-between mt-6">
+            <button id="btnPrev" class="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 hidden" onclick="navigate(-1)">
+                <i class="fa-solid fa-chevron-left mr-2"></i>ย้อนกลับ
+            </button>
+            <button id="btnNext" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 ml-auto" onclick="navigate(1)">
+                ถัดไป<i class="fa-solid fa-chevron-right ml-2"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Firebase SDK (รูปแบบใช้งานผ่าน CDN ในไฟล์ HTML ธรรมดา) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+        import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBeSKyXfcUnFU0KUwRLr9E7rZRQM9WaQ5o",
+            authDomain: "talangson-84a84.firebaseapp.com",
+            databaseURL: "https://talangson-84a84-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "talangson-84a84",
+            storageBucket: "talangson-84a84.firebasestorage.app",
+            messagingSenderId: "919766817681",
+            appId: "1:919766817681:web:8ffe7883df9282dc171830"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // State ของแอปพลิเคชัน
+        window.appState = {
+            currentStep: 1,
+            config: { periods: 8 },
+            teachers: [],
+            totalPeriodsRequired: 0 // รวมคาบแบบเรียลไทม์
+        };
+
+        // ฟังก์ชัน Auto Save ไปยัง Firebase
+        let saveTimeout;
+        window.autoSave = function() {
+            clearTimeout(saveTimeout);
+            document.getElementById('saveStatus').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
+            
+            saveTimeout = setTimeout(() => {
+                set(ref(db, 'scheduleData'), window.appState)
+                .then(() => {
+                    document.getElementById('saveStatus').innerHTML = '<i class="fa-solid fa-check text-green-300"></i> บันทึกแล้ว';
+                })
+                .catch((error) => {
+                    console.error("Error saving data:", error);
+                    document.getElementById('saveStatus').innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-300"></i> บันทึกไม่สำเร็จ';
+                });
+            }, 1000); // Debounce 1 วิ
+        }
+
+        // ดึงข้อมูลเมื่อโหลดหน้าแรก
+        get(ref(db, 'scheduleData')).then((snapshot) => {
+            if (snapshot.exists()) {
+                window.appState = snapshot.val();
+                if(!window.appState.currentStep) window.appState.currentStep = 1;
+                updateUI();
+            }
+        });
+    </script>
+
+    <!-- UI Logic Script -->
+    <script>
+        let currentStep = 1;
+        const totalSteps = 5;
+
+        function updateUI() {
+            // Update Step Display
+            document.querySelectorAll('.step-content').forEach((el, index) => {
+                if (index + 1 === currentStep) {
+                    el.classList.add('active');
+                } else {
+                    el.classList.remove('active');
+                }
+            });
+
+            // Update Progress Bar & Indicators
+            let progress = ((currentStep - 1) / (totalSteps - 1)) * 100;
+            document.getElementById('progressLine').style.width = `${progress}%`;
+
+            for (let i = 1; i <= totalSteps; i++) {
+                let indicator = document.getElementById(`indicator-${i}`);
+                if (i <= currentStep) {
+                    indicator.classList.replace('bg-gray-300', 'bg-blue-600');
+                    indicator.classList.replace('text-gray-600', 'text-white');
+                } else {
+                    indicator.classList.replace('bg-blue-600', 'bg-gray-300');
+                    indicator.classList.replace('text-white', 'text-gray-600');
+                }
+            }
+
+            // Button Visibility
+            document.getElementById('btnPrev').style.display = currentStep > 1 ? 'block' : 'none';
+            document.getElementById('btnNext').style.display = currentStep < totalSteps ? 'block' : 'none';
+        }
+
+        function navigate(direction) {
+            currentStep += direction;
+            if (currentStep < 1) currentStep = 1;
+            if (currentStep > totalSteps) currentStep = totalSteps;
+            
+            if(window.appState) {
+                window.appState.currentStep = currentStep;
+                if(window.autoSave) window.autoSave();
+            }
+            
+            updateUI();
+        }
+
+        function goToStep(step) {
+            currentStep = step;
+            updateUI();
+        }
+
+        // ฟังก์ชันคำนวณคาบสอนรวม (ตัวอย่าง)
+        function calculateTotalPeriods() {
+            // (คาบต่อวัน - พักเที่ยง) * ห้องทั้งหมด * 5 วัน
+            // จะต้องหักลบกับจำนวนหน่วยกิตของครูที่กรอกเข้ามาแบบ Real-time
+            // กำหนดแสดงผล
+            document.getElementById('remainingPeriodsDisplay').innerText = "120"; // ตัวเลขจำลอง
+        }
+
+        // เริ่มต้นการแสดงผล
+        window.onload = () => {
+            updateUI();
+            calculateTotalPeriods();
+        };
+    </script>
+</body>
+</html>
