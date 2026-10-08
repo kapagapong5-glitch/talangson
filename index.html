@@ -918,7 +918,43 @@
             document.getElementById('assignDayIndex').value = dayIndex;
             document.getElementById('assignPeriodIndex').value = periodIndex;
             
-            // สร้าง Dropdown วิชาของครูคนนี้ (รวมทุกวิชาที่เขาสอน และแยกรายห้อง)
+            // 1. นับจำนวนโควตาคาบสอนของวิชาแต่ละห้อง (คำนวณจาก: หน่วยกิต * 2)
+            const subjectLimits = {};
+            if (window.appState.teachers) {
+                window.appState.teachers.forEach(t => {
+                    if (t.name === teacherName) {
+                        const limit = (parseFloat(t.credit) || 0) * 2;
+                        const rooms = t.rooms ? t.rooms.split(',').map(r => r.trim()) : [];
+                        rooms.forEach(room => {
+                            if (room) {
+                                const val = `${t.subjName} ${room}`;
+                                subjectLimits[val] = (subjectLimits[val] || 0) + limit;
+                            }
+                        });
+                    }
+                });
+            }
+
+            // 2. นับจำนวนที่ถูกจัดลงไปแล้วในตาราง ยกเว้นช่องที่กำลังกดแก้ไขอยู่
+            const assignedCounts = {};
+            const currentKey = `${teacherName}_${dayIndex}_${periodIndex}`;
+            let currentSelectedLabel = "";
+
+            if (window.appState.fixedSchedule) {
+                for (const [key, data] of Object.entries(window.appState.fixedSchedule)) {
+                    if (key.startsWith(teacherName + '_')) {
+                        if (data.type === 'subject') {
+                            if (key !== currentKey) {
+                                assignedCounts[data.label] = (assignedCounts[data.label] || 0) + 1;
+                            } else {
+                                currentSelectedLabel = data.label; // จำค่าเดิมของช่องนี้ไว้
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. สร้าง Dropdown โดยกรองเอาเฉพาะวิชาที่คาบยังเหลืออยู่
             const select = document.getElementById('assignSubjectSelect');
             select.innerHTML = '<option value="">-- กรุณาเลือก --</option>';
             
@@ -929,11 +965,17 @@
                         const rooms = t.rooms ? t.rooms.split(',').map(r => r.trim()) : [];
                         rooms.forEach(room => {
                             if(room) {
-                                // เช็คว่าวิชา+ห้องนี้ ถูกจัดลงคาบอื่นของครูคนนี้ไปแล้วกี่ครั้ง เพื่อไม่ให้เลือกเกิน
-                                // (เป็นฟีเจอร์เพิ่มความฉลาด แต่ตอนนี้ให้เลือกได้อิสระไปก่อน)
                                 const val = `${t.subjName} ${room}`;
-                                select.innerHTML += `<option value="${val}">${val} (รหัส: ${t.subjCode})</option>`;
-                                hasSubjects = true;
+                                const limit = subjectLimits[val] || 0;
+                                const used = assignedCounts[val] || 0;
+                                const remaining = limit - used;
+                                
+                                // แสดงให้เลือกเฉพาะวิชาที่โควตายังเหลือ หรือเป็นวิชาที่เลือกไว้อยู่แล้วในช่องนี้
+                                if (remaining > 0 || val === currentSelectedLabel) {
+                                    const remainText = remaining > 0 ? `(เหลืออีก ${remaining} คาบ)` : `(ครบโควตาแล้ว)`;
+                                    select.innerHTML += `<option value="${val}">${val} รหัส: ${t.subjCode} ${remainText}</option>`;
+                                    hasSubjects = true;
+                                }
                             }
                         });
                     }
@@ -941,16 +983,12 @@
             }
             
             if(!hasSubjects) {
-                select.innerHTML += '<option disabled>ไม่พบข้อมูลวิชา/ห้องสอนของครูท่านนี้</option>';
+                select.innerHTML += '<option disabled>จัดคาบครบทุกวิชาแล้ว หรือไม่มีข้อมูล</option>';
             }
 
             // ถ้าคาบนี้เคยมีการตั้งค่าไว้ ให้ดึงมาแสดงใน Dropdown
-            const key = `${teacherName}_${dayIndex}_${periodIndex}`;
-            if(window.appState.fixedSchedule && window.appState.fixedSchedule[key]) {
-                const existingData = window.appState.fixedSchedule[key];
-                if(existingData.type === 'subject') {
-                    select.value = existingData.label;
-                }
+            if(currentSelectedLabel) {
+                select.value = currentSelectedLabel;
             } else {
                 select.value = "";
             }
