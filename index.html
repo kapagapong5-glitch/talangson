@@ -198,23 +198,29 @@
 
             <!-- Step 4: Schedule Generation (Drag & Drop) -->
             <div id="step4" class="step-content">
-                <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 border-b pb-2">
                     <h2 class="text-2xl font-bold text-gray-700"><i class="fa-solid fa-wand-magic-sparkles text-blue-600 mr-2"></i>ขั้นที่ 4: จัดตารางสอน</h2>
-                    <button class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shadow flex items-center" id="btnCalculate">
-                        <i class="fa-solid fa-calculator mr-2"></i>สุ่มตาราง (Auto)
-                    </button>
+                    
+                    <div class="flex flex-wrap gap-2 mt-2 md:mt-0">
+                        <select id="gridColsStep4" class="border border-gray-300 rounded p-1 text-sm bg-white" onchange="renderStep4Grid()">
+                            <option value="1">1 ตาราง/แถว</option>
+                            <option value="2">2 ตาราง/แถว</option>
+                            <option value="3" selected>3 ตาราง/แถว</option>
+                        </select>
+                        <button class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 shadow hidden flex items-center font-bold animate-pulse" id="btnCheckConflict" onclick="checkConflicts()">
+                            <i class="fa-solid fa-triangle-exclamation mr-2"></i>ตรวจการชนกัน (บังคับกด)
+                        </button>
+                        <button class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shadow flex items-center" onclick="generateAutoSchedule()">
+                            <i class="fa-solid fa-calculator mr-2"></i>สุ่มตาราง (Auto)
+                        </button>
+                    </div>
                 </div>
                 
-                <div class="bg-gray-100 p-4 rounded-lg border border-gray-300 h-96 overflow-y-auto relative">
-                    <!-- จำลอง Drag and Drop Card -->
-                    <p class="text-center text-gray-500 mt-10">
-                        พื้นที่ระบบ Drag & Drop สลับคาบเรียน<br>
-                        <span class="text-sm text-red-500 mt-2 block">* หากมีการลากสลับ ระบบจะบังคับให้กดคำนวณใหม่เพื่อเช็คการชนกัน</span>
-                    </p>
-                    <div class="mt-4 grid grid-cols-5 gap-2">
-                        <div class="bg-white p-2 border rounded shadow-sm text-center text-sm cursor-move hover:bg-blue-50" draggable="true">คณิต ป.3/1<br><span class="text-xs text-gray-400">ครูสมชาย</span></div>
-                        <div class="bg-white p-2 border rounded shadow-sm text-center text-sm cursor-move hover:bg-blue-50" draggable="true">ไทย ป.3/1<br><span class="text-xs text-gray-400">ครูสมหญิง</span></div>
-                    </div>
+                <p class="text-sm text-gray-500 mb-4">* สามารถใช้เมาส์ลาก (Drag & Drop) สลับคาบสอนได้อิสระ หากลากสลับแล้ว ต้องกดปุ่ม <span class="text-red-500 font-bold">"ตรวจการชนกัน"</span> เสมอ</p>
+                
+                <div id="scheduleGridsContainer" class="grid gap-4 mt-4 overflow-y-auto max-h-[600px] p-2 bg-gray-50 rounded-lg border border-gray-200">
+                    <!-- ตารางสำหรับลากวางจะถูกสร้างที่นี่ -->
+                    <div class="text-center text-gray-400 py-10">กรุณากดปุ่ม "สุ่มตาราง (Auto)" เพื่อเริ่มจัดตารางสอน</div>
                 </div>
             </div>
 
@@ -270,13 +276,20 @@
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">หน่วยกิต (คูณ 2 = จำนวนคาบ)</label>
+                            <label class="block text-sm font-medium text-gray-700">หน่วยกิต (คูณ 2 = คาบ)</label>
                             <input type="number" step="0.5" min="0" id="tCredit" class="mt-1 block w-full border border-gray-300 rounded p-2 focus:border-blue-500 focus:ring-blue-500" placeholder="เช่น 1.5">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">ห้องที่สอน (คั่นด้วยลูกน้ำ)</label>
-                            <input type="text" id="tRooms" class="mt-1 block w-full border border-gray-300 rounded p-2 focus:border-blue-500 focus:ring-blue-500" placeholder="เช่น ป.3/1, ป.3/2">
+                            <label class="block text-sm font-medium text-gray-700">รูปแบบการสอน</label>
+                            <select id="tPeriodType" class="mt-1 block w-full border border-gray-300 rounded p-2 focus:border-blue-500 focus:ring-blue-500">
+                                <option value="single">คาบเดี่ยว (1 คาบ/วัน)</option>
+                                <option value="double">คาบคู่ (2 คาบติดกัน)</option>
+                            </select>
                         </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">ห้องที่สอน (คั่นด้วยลูกน้ำ)</label>
+                        <input type="text" id="tRooms" class="mt-1 block w-full border border-gray-300 rounded p-2 focus:border-blue-500 focus:ring-blue-500" placeholder="เช่น ป.3/1, ป.3/2">
                     </div>
                     <p class="text-xs text-blue-600 mt-2">* หากครู 1 คนสอนหลายวิชา ให้กดเพิ่มครูคนเดิมแต่เปลี่ยนชื่อวิชาได้เลย</p>
                 </div>
@@ -744,7 +757,6 @@
             if(window.calculateTotalPeriods) window.calculateTotalPeriods();
         };
 
-        // ฟังก์ชันเปิด-ปิด Modal
         window.openTeacherModal = () => {
             document.getElementById('modalTitle').innerText = "เพิ่มข้อมูลครูผู้สอน";
             document.getElementById('editTeacherIndex').value = "-1";
@@ -753,6 +765,7 @@
             document.getElementById('tSubjCode').value = "";
             document.getElementById('tCredit').value = "";
             document.getElementById('tRooms').value = "";
+            document.getElementById('tPeriodType').value = "single"; // ค่าเริ่มต้น
             document.getElementById('teacherModal').classList.remove('hidden');
         };
 
@@ -769,6 +782,7 @@
             document.getElementById('tSubjCode').value = t.subjCode;
             document.getElementById('tCredit').value = t.credit;
             document.getElementById('tRooms').value = t.rooms;
+            document.getElementById('tPeriodType').value = t.periodType || "single";
             document.getElementById('teacherModal').classList.remove('hidden');
         };
 
@@ -780,7 +794,8 @@
                 subjName: document.getElementById('tSubjName').value.substring(0, 6),
                 subjCode: document.getElementById('tSubjCode').value,
                 credit: parseFloat(document.getElementById('tCredit').value) || 0,
-                rooms: document.getElementById('tRooms').value
+                rooms: document.getElementById('tRooms').value,
+                periodType: document.getElementById('tPeriodType').value // บันทึกประเภทคาบ
             };
 
             if(!teacherData.name) {
@@ -814,6 +829,299 @@
         window.restoreUIFromState = () => {
             if(originalRestoreUI) originalRestoreUI();
             window.renderTeachers();
+        };
+
+        // --- ระบบสุ่มตารางและ Drag & Drop (Step 4) ---
+
+        // 1. ฟังก์ชันดึงคาบพักเที่ยงของแต่ละห้อง
+        const getLunchPeriod = (roomName) => {
+            if (window.appState.gradeLevels) {
+                for (let g of window.appState.gradeLevels) {
+                    if (roomName.startsWith(g.name)) return parseInt(g.lunchPeriod) || 0;
+                }
+            }
+            return 0;
+        };
+
+        // 2. ฟังก์ชันหลักในการสุ่มตาราง
+        window.generateAutoSchedule = () => {
+            const btnCheck = document.getElementById('btnCheckConflict');
+            if(btnCheck) btnCheck.classList.add('hidden'); // ซ่อนปุ่มเช็คเวลาเริ่มสุ่มใหม่
+
+            // เริ่มต้นจากตารางบังคับในขั้นที่ 3
+            window.appState.generatedSchedule = window.appState.fixedSchedule ? JSON.parse(JSON.stringify(window.appState.fixedSchedule)) : {};
+            const periodsCount = parseInt(window.appState.config?.periods) || 9;
+
+            let classesToSchedule = []; 
+            if (!window.appState.teachers) return;
+
+            // นับวิชาที่ล็อกไว้แล้ว (จากขั้น 3)
+            const fixedCounts = {};
+            for (let key in window.appState.generatedSchedule) {
+                let data = window.appState.generatedSchedule[key];
+                if (data.type === 'subject') fixedCounts[data.label] = (fixedCounts[data.label] || 0) + 1;
+            }
+
+            // แตกรายการวิชาที่ต้องสุ่ม
+            window.appState.teachers.forEach(t => {
+                const limit = (parseFloat(t.credit) || 0) * 2;
+                const rooms = t.rooms ? t.rooms.split(',').map(r => r.trim()).filter(r => r) : [];
+                const type = t.periodType || 'single';
+
+                rooms.forEach(room => {
+                    const label = `${t.subjName} ${room}`;
+                    let remaining = limit - (fixedCounts[label] || 0);
+                    if (remaining > 0) {
+                        if (type === 'double') {
+                            while (remaining >= 2) {
+                                classesToSchedule.push({ tName: t.name, label: label, room: room, type: 'double' });
+                                remaining -= 2;
+                            }
+                        }
+                        while (remaining > 0) {
+                            classesToSchedule.push({ tName: t.name, label: label, room: room, type: 'single' });
+                            remaining--;
+                        }
+                    }
+                });
+            });
+
+            // เรียงให้จัดคาบคู่ก่อน และสุ่มลำดับเล็กน้อย
+            classesToSchedule.sort((a, b) => {
+                if (a.type === 'double' && b.type !== 'double') return -1;
+                if (b.type === 'double' && a.type !== 'double') return 1;
+                return Math.random() - 0.5;
+            });
+
+            // อัลกอริทึมจัดลงตาราง
+            for (let cls of classesToSchedule) {
+                let placed = false;
+                let lunch = getLunchPeriod(cls.room);
+
+                // สุ่มวัน
+                let daysArr = [0, 1, 2, 3, 4].sort(() => Math.random() - 0.5);
+
+                for (let d of daysArr) {
+                    if (placed) break;
+
+                    // เช็คว่าวันนี้ห้องนี้เรียนวิชานี้ไปหรือยัง (ห้ามเรียน 2 รอบใน 1 วัน ยกเว้นคาบคู่)
+                    let hasToday = false;
+                    for (let p = 1; p <= periodsCount; p++) {
+                        for (let key in window.appState.generatedSchedule) {
+                            if (key.includes(`_${d}_${p}`)) {
+                                let v = window.appState.generatedSchedule[key];
+                                if (v.type === 'subject' && v.label === cls.label) hasToday = true;
+                            }
+                        }
+                    }
+                    if (hasToday && cls.type === 'single') continue;
+
+                    // กระจายคาบเช้า-บ่าย
+                    let periodsArr = Array.from({length: periodsCount}, (_, i) => i + 1);
+                    if (Math.random() > 0.5) periodsArr.reverse();
+
+                    for (let p of periodsArr) {
+                        if (placed) break;
+                        if (p === lunch) continue;
+
+                        let tKey = `${cls.tName}_${d}_${p}`;
+                        // เช็คครูว่างไหม? (ถ้าไม่ว่างหรือโดนล็อกว่า empty ข้ามไป)
+                        if (window.appState.generatedSchedule[tKey]) continue;
+
+                        // เช็คห้องว่างไหม? (ครูคนอื่นสอนห้องนี้เวลานี้อยู่หรือเปล่า)
+                        let roomFree = true;
+                        for (let t of window.appState.teachers) {
+                            let k = `${t.name}_${d}_${p}`;
+                            let v = window.appState.generatedSchedule[k];
+                            if (v && v.type === 'subject' && v.label.includes(cls.room)) {
+                                roomFree = false; break;
+                            }
+                        }
+                        if (!roomFree) continue;
+
+                        if (cls.type === 'single') {
+                            window.appState.generatedSchedule[tKey] = { type: 'subject', label: cls.label, isAuto: true };
+                            placed = true;
+                        } else if (cls.type === 'double') {
+                            let p2 = p + 1;
+                            if (p2 <= periodsCount && p2 !== lunch) {
+                                let tKey2 = `${cls.tName}_${d}_${p2}`;
+                                if (!window.appState.generatedSchedule[tKey2]) {
+                                    let roomFree2 = true;
+                                    for (let t of window.appState.teachers) {
+                                        let k = `${t.name}_${d}_${p2}`;
+                                        let v = window.appState.generatedSchedule[k];
+                                        if (v && v.type === 'subject' && v.label.includes(cls.room)) {
+                                            roomFree2 = false; break;
+                                        }
+                                    }
+                                    if (roomFree2) {
+                                        window.appState.generatedSchedule[tKey] = { type: 'subject', label: cls.label, isAuto: true };
+                                        window.appState.generatedSchedule[tKey2] = { type: 'subject', label: cls.label, isAuto: true };
+                                        placed = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            alert("สุ่มตารางสอนเรียบร้อยแล้ว!");
+            window.renderStep4Grid();
+            window.autoSave();
+        };
+
+        // 3. ฟังก์ชันวาดตาราง Drag & Drop
+        window.renderStep4Grid = () => {
+            const container = document.getElementById('scheduleGridsContainer');
+            if(!container) return;
+            
+            const cols = document.getElementById('gridColsStep4').value || 3;
+            container.className = `grid gap-6 mt-4 overflow-y-auto max-h-[600px] p-4 bg-gray-50 rounded-lg border border-gray-200 grid-cols-1 md:grid-cols-2 lg:grid-cols-${cols}`;
+            container.innerHTML = '';
+            
+            if (!window.appState.generatedSchedule) {
+                container.innerHTML = '<div class="col-span-full text-center text-gray-500 py-10">กรุณากดปุ่ม "สุ่มตาราง (Auto)" เพื่อเริ่มจัดตารางสอน</div>';
+                return;
+            }
+
+            const periodsCount = parseInt(window.appState.config?.periods) || 9;
+            const groupedTeachers = {};
+            window.appState.teachers.forEach(t => {
+                if(!groupedTeachers[t.name]) groupedTeachers[t.name] = [];
+                groupedTeachers[t.name].push(t);
+            });
+
+            Object.keys(groupedTeachers).forEach(teacherName => {
+                let tableHTML = `
+                    <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <h4 class="font-bold text-indigo-800 text-center mb-2 bg-indigo-100 py-1 rounded">ตารางสอน: ${teacherName}</h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-center border-collapse">
+                                <thead>
+                                    <tr class="bg-gray-100"><th class="border p-1 w-12">วัน</th>`;
+                for(let p = 1; p <= periodsCount; p++) tableHTML += `<th class="border p-1">คาบ ${p}</th>`;
+                tableHTML += `</tr></thead><tbody>`;
+                
+                days.forEach((day, dIndex) => {
+                    tableHTML += `<tr><td class="border p-1 font-semibold bg-gray-50">${day}</td>`;
+                    for(let p = 1; p <= periodsCount; p++) {
+                        const key = `${teacherName}_${dIndex}_${p}`;
+                        const cellData = window.appState.generatedSchedule[key];
+                        
+                        let cellContent = '';
+                        let cellClass = 'h-12 w-16 transition droppable-cell';
+                        let dragAttr = `ondragover="allowDrop(event)" ondrop="handleDrop(event, '${key}')"`;
+                        
+                        if (cellData) {
+                            if (cellData.type === 'empty') {
+                                cellContent = '<i class="fa-solid fa-ban text-red-400"></i>';
+                                cellClass += ' bg-red-50';
+                            } else if (cellData.type === 'subject') {
+                                // ถ้าลากได้ ให้ใส่ attribute draggable
+                                cellContent = `<div class="w-full h-full flex items-center justify-center font-bold text-indigo-700 cursor-move" draggable="true" ondragstart="handleDragStart(event, '${key}')">${cellData.label}</div>`;
+                                cellClass += ' bg-indigo-50 border-indigo-200 hover:bg-indigo-100';
+                            }
+                        } else {
+                            cellClass += ' hover:bg-gray-100';
+                        }
+                        
+                        tableHTML += `<td id="cell_${key}" class="border p-1 ${cellClass}" ${dragAttr}>${cellContent}</td>`;
+                    }
+                    tableHTML += `</tr>`;
+                });
+                tableHTML += `</tbody></table></div></div>`;
+                container.innerHTML += tableHTML;
+            });
+        };
+
+        // 4. ระบบ Drag & Drop
+        let draggedKey = null;
+
+        window.handleDragStart = (ev, key) => {
+            draggedKey = key;
+            ev.dataTransfer.effectAllowed = 'move';
+        };
+
+        window.allowDrop = (ev) => {
+            ev.preventDefault();
+        };
+
+        window.handleDrop = (ev, targetKey) => {
+            ev.preventDefault();
+            if(!draggedKey || draggedKey === targetKey) return;
+
+            // สลับข้อมูลใน State
+            let temp = window.appState.generatedSchedule[targetKey];
+            
+            if (window.appState.generatedSchedule[draggedKey]) {
+                window.appState.generatedSchedule[targetKey] = window.appState.generatedSchedule[draggedKey];
+            } else {
+                delete window.appState.generatedSchedule[targetKey];
+            }
+
+            if (temp) {
+                window.appState.generatedSchedule[draggedKey] = temp;
+            } else {
+                delete window.appState.generatedSchedule[draggedKey];
+            }
+
+            // บังคับให้ปุ่มตรวจสอบการชนกันแสดงขึ้นมา
+            document.getElementById('btnCheckConflict').classList.remove('hidden');
+            window.renderStep4Grid();
+        };
+
+        // 5. ระบบตรวจสอบการชนกัน (เมื่อผู้ใช้ลากสลับเอง)
+        window.checkConflicts = () => {
+            // ลบสีแดงของเก่าออกก่อน
+            document.querySelectorAll('.conflict-highlight').forEach(el => el.classList.remove('conflict-highlight', 'bg-red-200', 'border-red-500'));
+            let hasConflict = false;
+            const periodsCount = parseInt(window.appState.config?.periods) || 9;
+            let schedule = window.appState.generatedSchedule || {};
+
+            for (let d = 0; d < 5; d++) {
+                for (let p = 1; p <= periodsCount; p++) {
+                    let roomsInPeriod = {};
+                    for (let key in schedule) {
+                        if (key.includes(`_${d}_${p}`)) {
+                            let v = schedule[key];
+                            if (v.type === 'subject') {
+                                // ดึงชื่อห้อง (อิงจากข้อความหลังเว้นวรรค เช่น "คณิต ม.3/1" -> "ม.3/1")
+                                let parts = v.label.split(' ');
+                                let room = parts.length > 1 ? parts[parts.length - 1] : v.label;
+                                
+                                if (roomsInPeriod[room]) {
+                                    hasConflict = true;
+                                    // ไฮไลต์เซลล์ที่ชนกันเป็นสีแดง
+                                    let cell1 = document.getElementById(`cell_${key}`);
+                                    let cell2 = document.getElementById(`cell_${roomsInPeriod[room]}`);
+                                    if(cell1) cell1.classList.add('conflict-highlight', 'bg-red-200', 'border-red-500');
+                                    if(cell2) cell2.classList.add('conflict-highlight', 'bg-red-200', 'border-red-500');
+                                } else {
+                                    roomsInPeriod[room] = key;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (hasConflict) {
+                alert("พบข้อขัดแย้ง! มีห้องเรียนที่ถูกจัดให้เรียนพร้อมกันในคาบเดียวกัน (ช่องที่ไฮไลต์สีแดง)");
+            } else {
+                alert("ยอดเยี่ยม! ไม่มีตารางสอนชนกัน คุณสามารถไปขั้นต่อไปได้");
+                document.getElementById('btnCheckConflict').classList.add('hidden'); // ซ่อนปุ่มเมื่อผ่านแล้ว
+                window.autoSave();
+            }
+        };
+
+        // ผูกฟังก์ชัน Render กับการเปลี่ยนหน้า
+        const originalUpdateUI3 = window.updateUI || function(){};
+        window.updateUI = function() {
+            originalUpdateUI3();
+            if(window.appState && window.appState.currentStep === 4) {
+                setTimeout(() => { window.renderStep4Grid(); }, 100);
+            }
         };
 
         // เริ่มต้นการแสดงผลเมื่อเปิดหน้าเว็บ
