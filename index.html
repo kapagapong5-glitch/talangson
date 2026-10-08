@@ -898,7 +898,7 @@
         // --- ระบบ Custom Pop-up ---
         window.showAppAlert = (title, message, type = 'info') => {
             document.getElementById('alertTitle').innerText = title;
-            document.getElementById('alertMessage').innerText = message;
+            document.getElementById('alertMessage').innerHTML = message; // เปลี่ยนเพื่อรองรับการสร้างปุ่ม
             
             let iconHTML = '';
             if(type === 'success') iconHTML = '<i class="fa-solid fa-circle-check text-green-500"></i>';
@@ -1138,7 +1138,8 @@
         
         const cols = document.getElementById('gridColsStep4').value || 2; 
         
-        container.className = `grid gap-6 mt-2 overflow-y-auto max-h-[700px] p-2 grid-cols-1 xl:grid-cols-${cols}`;
+        // ลบ max-h-[700px] และ overflow-y-auto ออก เพื่อให้หน้าจอเลื่อนได้อิสระ ไม่บัก
+        container.className = `grid gap-6 mt-2 p-2 grid-cols-1 xl:grid-cols-${cols}`;
         container.innerHTML = '';
         
         if (!window.appState.generatedSchedule) {
@@ -1170,7 +1171,7 @@
             let lockIcon = isLocked ? '<i class="fa-solid fa-lock mr-1"></i> ล็อกตารางแล้ว' : '<i class="fa-solid fa-unlock mr-1"></i> ปลดล็อกอยู่';
 
             let tableHTML = `
-                <div class="bg-white rounded-2xl shadow-sm border-2 ${cardBorder} overflow-hidden transition-all duration-300 flex flex-col">
+                <div id="teacher_card_${teacherName}" class="bg-white rounded-2xl shadow-sm border-2 ${cardBorder} overflow-hidden transition-all duration-500 flex flex-col">
                     <div class="flex justify-between items-center p-4 ${headerBg} border-b border-gray-100">
                         <div class="flex items-center">
                             <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-lg mr-3">
@@ -1213,8 +1214,10 @@
                     const cellData = window.appState.generatedSchedule[key];
                     
                     let cellContent = '';
-                    let cellClass = `border border-gray-200 h-16 transition droppable-cell ${dayBg}`;
-                    let dragAttr = `ondragover="allowDrop(event)" ondrop="handleDrop(event, '${key}')"`;
+                    let cellClass = `border border-gray-200 h-16 transition droppable-cell ${dayBg} cursor-pointer`;
+                    
+                    // เพิ่ม onclick="handleCellClick" เพื่อรองรับการกดดูข้อมูลคาบที่ชน
+                    let dragAttr = `ondragover="allowDrop(event)" ondrop="handleDrop(event, '${key}')" onclick="handleCellClick(event, '${key}')"`;
                     
                     if (cellData) {
                         if (cellData.type === 'empty') {
@@ -1355,24 +1358,81 @@
             }
         };
 
+        // --- 1. ระบบลูกศรเลื่อนหาคาบชน ---
         window.navigateConflict = (direction) => {
             if(conflictCellsList.length === 0) return;
 
-            // ล้าง Effect กระพริบของตัวเก่าก่อน
             if(currentConflictIndex >= 0 && conflictCellsList[currentConflictIndex]) {
                 conflictCellsList[currentConflictIndex].classList.remove('target-pulse');
             }
             currentConflictIndex += direction;
             if(currentConflictIndex >= conflictCellsList.length) currentConflictIndex = 0;
             if(currentConflictIndex < 0) currentConflictIndex = conflictCellsList.length - 1;
+            
             const targetCell = conflictCellsList[currentConflictIndex];
             if(targetCell) {
-                // เลื่อนหน้าจอไปหา (หักลบความสูงของ Header ลอยตัวออก เพื่อไม่ให้บังตาราง)
-                const y = targetCell.getBoundingClientRect().top + window.pageYOffset - 150;
-                window.scrollTo({ top: y, behavior: 'smooth' });
-                
-                // เพิ่ม Effect ซูมเด้ง เพื่อให้เห็นชัดๆ
+                // เลื่อนหน้าจอให้อยู่ตรงกลางเสมอ ทำให้ไม่โดนแถบเมนูด้านบนบัง
+                targetCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 targetCell.classList.add('target-pulse');
+            }
+        };
+
+        // --- 2. ระบบกดที่ช่องสีแดง เพื่อดูว่าชนกับครูคนไหน ---
+        window.handleCellClick = (ev, key) => {
+            const cell = document.getElementById(`cell_${key}`);
+            // ถ้าช่องนั้นไม่มีสีแดง (ไม่ได้ชน) ไม่ต้องทำอะไร
+            if (!cell || !cell.classList.contains('conflict-highlight')) return;
+
+            const data = window.appState.generatedSchedule[key];
+            if (!data || data.type !== 'subject') return;
+
+            // ค้นหาห้องและข้อมูลเวลา
+            let parts = data.label.split(' ');
+            let room = parts.length > 1 ? parts[parts.length - 1] : data.label;
+            let [tName, d, p] = key.split('_');
+
+            // วนหาครูคนอื่นๆ ที่สอนห้องนี้ วันนี้ คาบนี้ เหมือนกัน
+            let conflictingTeachers = [];
+            for (let k in window.appState.generatedSchedule) {
+                if (k !== key && k.endsWith(`_${d}_${p}`)) {
+                    let v = window.appState.generatedSchedule[k];
+                    if (v.type === 'subject') {
+                        let rParts = v.label.split(' ');
+                        let r = rParts.length > 1 ? rParts[rParts.length - 1] : v.label;
+                        if (r === room) {
+                            conflictingTeachers.push(k.split('_')[0]);
+                        }
+                    }
+                }
+            }
+
+            if (conflictingTeachers.length > 0) {
+                let msg = `<div class="mt-4 text-left space-y-2">
+                    <p class="text-sm font-semibold text-gray-700">ห้อง <span class="text-red-600">${room}</span> มีการสอนซ้ำซ้อนกับ:</p>`;
+                
+                // สร้างปุ่มวิ่งไปหาครูแต่ละคนที่ชน
+                conflictingTeachers.forEach(ct => {
+                    msg += `<button onclick="jumpToTeacher('${ct}'); closeCustomAlert();" class="w-full text-left px-4 py-3 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl text-red-700 font-bold transition flex justify-between items-center shadow-sm">
+                        <span><i class="fa-solid fa-chalkboard-user mr-2"></i> ครู${ct}</span>
+                        <i class="fa-solid fa-arrow-right-long"></i>
+                    </button>`;
+                });
+                msg += `</div>`;
+                
+                showAppAlert('รายละเอียดการชน', msg, 'error');
+            }
+        };
+
+        // --- 3. ระบบวิ่งไปหาตารางของครูเป้าหมาย ---
+        window.jumpToTeacher = (tName) => {
+            const card = document.getElementById(`teacher_card_${tName}`);
+            if(card) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // ทำให้ตารางของครูคนนั้นเรืองแสงขึ้นมา 2 วินาทีเพื่อให้เห็นชัดเจน
+                card.classList.add('shadow-[0_0_20px_rgba(239,68,68,0.6)]', 'scale-[1.02]', 'border-red-500');
+                setTimeout(() => {
+                    card.classList.remove('shadow-[0_0_20px_rgba(239,68,68,0.6)]', 'scale-[1.02]', 'border-red-500');
+                }, 2000);
             }
         };
 
