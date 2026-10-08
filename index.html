@@ -20,6 +20,36 @@
         .step-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .drag-over { border: 2px dashed #3b82f6; background-color: #eff6ff; }
+        /* --- CSS สำหรับเน้นคาบที่ชนกัน (กรอบแดงกระพริบชัดเจน) --- */
+        .conflict-highlight {
+            border: 3px solid #ef4444 !important;
+            background-color: #fee2e2 !important;
+            border-radius: 8px;
+            animation: pulse-red 2s infinite;
+        }
+        /* บังคับให้พื้นหลังวิชาข้างในโปร่งใส เพื่อให้สีแดงเด่นขึ้น */
+        .conflict-highlight div > div {
+            background-color: transparent !important;
+            border-color: transparent !important;
+            box-shadow: none !important;
+        }
+        /* เปลี่ยนสีตัวหนังสือวิชาที่ชนให้เป็นสีแดงเข้ม */
+        .conflict-highlight span {
+            color: #991b1b !important;
+        }
+        /* สไตล์สำหรับตอนกดลูกศรเลื่อนดูคาบชนทีละอัน */
+        .target-pulse {
+            transform: scale(1.05);
+            box-shadow: 0 0 0 5px #f87171 !important;
+            transition: all 0.3s ease;
+            z-index: 20;
+            position: relative;
+        }
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+            70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
     </style>
 </head>
 <body class="text-gray-800">
@@ -198,7 +228,7 @@
 
             <!-- Step 4: Schedule Generation (Drag & Drop) -->
             <div id="step4" class="step-content">
-                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4 border-b border-gray-200 pb-4">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4 border-b border-gray-200 pb-4 sticky top-16 z-40 bg-white/95 backdrop-blur-md pt-4 -mt-4 -mx-4 px-4 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)] rounded-t-xl transition-all">
                     <div>
                         <h2 class="text-2xl font-bold text-gray-800 flex items-center">
                             <i class="fa-solid fa-wand-magic-sparkles text-indigo-600 mr-3"></i>ขั้นที่ 4: จัดตารางสอน
@@ -1273,14 +1303,13 @@
         let currentConflictIndex = -1;
 
         window.checkConflicts = () => {
-            // ล้างไฮไลต์เดิม
-            document.querySelectorAll('.conflict-highlight').forEach(el => el.classList.remove('conflict-highlight', 'bg-red-200', 'border-red-500', 'shadow-[inset_0_0_10px_rgba(239,68,68,0.5)]', 'animate-pulse'));
+            // ล้างไฮไลต์เดิม (เปลี่ยนมาใช้ CSS Class สำเร็จรูป)
+            document.querySelectorAll('.conflict-highlight').forEach(el => el.classList.remove('conflict-highlight', 'target-pulse'));
             conflictCellsList = [];
             currentConflictIndex = -1;
-            
+
             const periodsCount = parseInt(window.appState.config?.periods) || 9;
             let schedule = window.appState.generatedSchedule || {};
-
             for (let d = 0; d < 5; d++) {
                 for (let p = 1; p <= periodsCount; p++) {
                     let roomsInPeriod = {};
@@ -1290,17 +1319,17 @@
                             if (v.type === 'subject') {
                                 let parts = v.label.split(' ');
                                 let room = parts.length > 1 ? parts[parts.length - 1] : v.label;
-                                
+
                                 if (roomsInPeriod[room]) {
                                     let cell1 = document.getElementById(`cell_${key}`);
                                     let cell2 = document.getElementById(`cell_${roomsInPeriod[room]}`);
-                                    
+
                                     if(cell1) {
-                                        cell1.classList.add('conflict-highlight', 'bg-red-200', 'border-red-500');
+                                        cell1.classList.add('conflict-highlight');
                                         if(!conflictCellsList.includes(cell1)) conflictCellsList.push(cell1);
                                     }
                                     if(cell2) {
-                                        cell2.classList.add('conflict-highlight', 'bg-red-200', 'border-red-500');
+                                        cell2.classList.add('conflict-highlight');
                                         if(!conflictCellsList.includes(cell2)) conflictCellsList.push(cell2);
                                     }
                                 } else {
@@ -1328,22 +1357,22 @@
 
         window.navigateConflict = (direction) => {
             if(conflictCellsList.length === 0) return;
-            
+
             // ล้าง Effect กระพริบของตัวเก่าก่อน
             if(currentConflictIndex >= 0 && conflictCellsList[currentConflictIndex]) {
-                conflictCellsList[currentConflictIndex].classList.remove('shadow-[inset_0_0_10px_rgba(239,68,68,0.5)]', 'animate-pulse');
+                conflictCellsList[currentConflictIndex].classList.remove('target-pulse');
             }
-
             currentConflictIndex += direction;
             if(currentConflictIndex >= conflictCellsList.length) currentConflictIndex = 0;
             if(currentConflictIndex < 0) currentConflictIndex = conflictCellsList.length - 1;
-
             const targetCell = conflictCellsList[currentConflictIndex];
             if(targetCell) {
-                // เลื่อนหน้าจอไปหา
-                targetCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                // เพิ่ม Effect ให้เห็นชัดๆ ว่ากำลังดูช่องไหน
-                targetCell.classList.add('shadow-[inset_0_0_10px_rgba(239,68,68,0.5)]', 'animate-pulse');
+                // เลื่อนหน้าจอไปหา (หักลบความสูงของ Header ลอยตัวออก เพื่อไม่ให้บังตาราง)
+                const y = targetCell.getBoundingClientRect().top + window.pageYOffset - 150;
+                window.scrollTo({ top: y, behavior: 'smooth' });
+                
+                // เพิ่ม Effect ซูมเด้ง เพื่อให้เห็นชัดๆ
+                targetCell.classList.add('target-pulse');
             }
         };
 
