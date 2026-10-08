@@ -85,35 +85,31 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-4">
                         <label class="block text-sm font-medium text-gray-700">จำนวนคาบเรียนต่อวัน</label>
-                        <input type="number" id="periodsPerDay" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-gray-50 border p-2" value="8" onchange="autoSave()">
+                        <!-- เปลี่ยนค่าเริ่มต้นเป็น 9 ตามภาพ และเมื่อเปลี่ยนให้สร้างตารางเวลาใหม่ -->
+                        <input type="number" id="periodsPerDay" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-gray-50 border p-2" value="9" min="1" max="15" onchange="generatePeriodTimes(); autoSave();">
                     </div>
-                    <!-- จำลองการเพิ่มชั้นเรียน -->
+                    
+                    <!-- ส่วนใหม่: จัดการเวลาแต่ละคาบ -->
                     <div class="space-y-4 col-span-2">
+                        <label class="block text-sm font-medium text-gray-700">กำหนดเวลาแต่ละคาบ (สามารถแก้ไขเวลาเองได้)</label>
+                        <div id="periodTimesContainer" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                            <!-- จะถูกสร้างอัตโนมัติด้วย JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- ส่วนจัดการระดับชั้นที่เชื่อมกับ JavaScript แล้ว -->
+                    <div class="space-y-4 col-span-2 mt-4 border-t pt-4">
                         <div class="flex justify-between items-center mb-2">
                             <label class="block text-sm font-medium text-gray-700">กำหนดชั้นเรียนและห้อง</label>
-                            <button class="bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 text-sm"><i class="fa-solid fa-plus mr-1"></i>เพิ่มระดับชั้น</button>
+                            <button onclick="addGradeLevel()" class="bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 text-sm transition shadow-sm"><i class="fa-solid fa-plus mr-1"></i>เพิ่มระดับชั้น</button>
                         </div>
-                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                            <div class="flex space-x-4 items-end">
-                                <div class="flex-1">
-                                    <label class="text-xs text-gray-500">ระดับชั้น</label>
-                                    <input type="text" placeholder="เช่น ป.3" class="block w-full border rounded p-2" value="ป.3">
-                                </div>
-                                <div class="w-24">
-                                    <label class="text-xs text-gray-500">จำนวนห้อง</label>
-                                    <input type="number" class="block w-full border rounded p-2" value="3">
-                                </div>
-                                <div class="flex-1">
-                                    <label class="text-xs text-gray-500">คาบพักเที่ยง (คาบที่)</label>
-                                    <input type="number" class="block w-full border rounded p-2" value="4">
-                                </div>
-                                <button class="bg-red-100 text-red-600 p-2 rounded hover:bg-red-200"><i class="fa-solid fa-trash"></i></button>
-                            </div>
+                        <div id="gradeLevelsContainer" class="space-y-3">
+                            <!-- แถวสำหรับกรอกชั้นเรียน จะถูกเพิ่มตรงนี้ผ่าน JS -->
                         </div>
                     </div>
                 </div>
             </div>
-
+            
             <!-- Step 2: Teacher Setup -->
             <div id="step2" class="step-content">
                 <h2 class="text-2xl font-bold mb-4 text-gray-700 border-b pb-2"><i class="fa-solid fa-users text-blue-600 mr-2"></i>ขั้นที่ 2: จัดการผู้สอนและวิชา</h2>
@@ -340,11 +336,87 @@
             document.getElementById('remainingPeriodsDisplay').innerText = "120"; // ตัวเลขจำลอง
         }
 
-        // เริ่มต้นการแสดงผล
+        // ฟังก์ชันสร้างช่องกำหนดเวลาแต่ละคาบโดยอัตโนมัติ (เริ่ม 08:30 คาบละ 50 นาที)
+        function generatePeriodTimes() {
+            const numPeriods = parseInt(document.getElementById('periodsPerDay').value) || 0;
+            const container = document.getElementById('periodTimesContainer');
+            
+            // เก็บค่าเดิมที่ผู้ใช้เคยพิมพ์แก้ไว้ก่อน
+            const oldValues = [];
+            document.querySelectorAll('.period-time-input').forEach(input => {
+                oldValues.push(input.value);
+            });
+
+            container.innerHTML = '';
+            
+            let startHour = 8;
+            let startMinute = 30;
+
+            for (let i = 1; i <= numPeriods; i++) {
+                let endHour = startHour;
+                let endMinute = startMinute + 50; // คาบละ 50 นาที
+                
+                // ปัดนาทีเป็นชั่วโมงถ้าเกิน 60 นาที
+                if (endMinute >= 60) {
+                    endHour += Math.floor(endMinute / 60);
+                    endMinute = endMinute % 60;
+                }
+                
+                // จัดรูปแบบ 00:00
+                let timeString = `${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}-${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`;
+                
+                // ถ้ามีค่าที่เคยพิมพ์ไว้อยู่แล้วให้ดึงกลับมา
+                let val = oldValues[i-1] ? oldValues[i-1] : timeString;
+
+                container.innerHTML += `
+                    <div class="bg-white border rounded-lg p-2 shadow-sm text-center">
+                        <label class="block text-xs font-bold text-blue-600 mb-1">คาบที่ ${i}</label>
+                        <input type="text" class="period-time-input w-full text-center border-b border-gray-200 focus:outline-none focus:border-blue-500 text-sm pb-1" value="${val}" onchange="autoSave()">
+                    </div>
+                `;
+                
+                // นำเวลาจบคาบนี้ ไปเป็นเวลาเริ่มคาบหน้า
+                startHour = endHour;
+                startMinute = endMinute;
+            }
+        }
+
+        // ฟังก์ชันสำหรับเพิ่มระดับชั้น
+        function addGradeLevel(gradeName = '', rooms = 1, lunchPeriod = 5) {
+            const container = document.getElementById('gradeLevelsContainer');
+            const newRow = document.createElement('div');
+            newRow.className = 'grade-row bg-gray-50 p-4 rounded-lg border border-gray-200 flex space-x-4 items-end transition-all';
+            newRow.innerHTML = `
+                <div class="flex-1">
+                    <label class="text-xs text-gray-500">ระดับชั้น (เช่น ม.3)</label>
+                    <input type="text" placeholder="เช่น ม.3" class="block w-full border rounded p-2 focus:ring-blue-500 focus:border-blue-500" value="${gradeName}" onchange="autoSave()">
+                </div>
+                <div class="w-24">
+                    <label class="text-xs text-gray-500">จำนวนห้อง</label>
+                    <input type="number" min="1" class="block w-full border rounded p-2 focus:ring-blue-500 focus:border-blue-500" value="${rooms}" onchange="autoSave()">
+                </div>
+                <div class="flex-1">
+                    <label class="text-xs text-gray-500">คาบพักเที่ยง (คาบที่)</label>
+                    <input type="number" min="1" class="block w-full border rounded p-2 focus:ring-blue-500 focus:border-blue-500" value="${lunchPeriod}" onchange="autoSave()">
+                </div>
+                <button onclick="this.closest('.grade-row').remove(); autoSave();" class="bg-red-100 text-red-600 p-2 rounded hover:bg-red-200 transition">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            `;
+            container.appendChild(newRow);
+        }
+
+        // เริ่มต้นการแสดงผลเมื่อเปิดหน้าเว็บ
         window.onload = () => {
             updateUI();
             calculateTotalPeriods();
+            
+            // เรียกสร้างเวลาคาบเรียน
+            generatePeriodTimes();
+            // สร้างแถวระดับชั้นตั้งต้น 1 แถว
+            addGradeLevel('ม.1', 3, 5); 
         };
+        
     </script>
 </body>
 </html>
