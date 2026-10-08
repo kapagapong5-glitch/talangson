@@ -204,30 +204,38 @@
 
             <!-- Step 3: Fixed Periods -->
             <div id="step3" class="step-content">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 border-b pb-2">
-                    <h2 class="text-2xl font-bold text-gray-700"><i class="fa-solid fa-th-umbtack text-blue-600 mr-2"></i>ขั้นที่ 3: กำหนดคาบบังคับ / คาบว่าง</h2>
-                    <div class="flex flex-wrap items-center gap-2 mt-2 md:mt-0">
-                        <button onclick="openBatchActivityModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition shadow-sm text-sm flex items-center font-medium">
-                            <i class="fa-solid fa-calendar-plus mr-2"></i>กำหนดคาบกิจกรรม / ส่วนกลาง
-                        </button>
-                        
-                        <div class="flex items-center space-x-2 border-l pl-3 border-gray-200">
-                            <label class="text-sm font-medium text-gray-700">มุมมอง:</label>
-                            <select id="gridCols" class="border border-gray-300 rounded p-1.5 text-sm bg-white focus:ring-blue-500 focus:border-blue-500" onchange="renderStep3Grid()">
-                                <option value="1">1 ตาราง/แถว</option>
-                                <option value="2">2 ตาราง/แถว</option>
-                                <option value="3" selected>3 ตาราง/แถว</option>
-                                <option value="4">4 ตาราง/แถว</option>
-                                <option value="5">5 ตาราง/แถว</option>
-                                <option value="6">6 ตาราง/แถว</option>
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4 border-b border-gray-200 pb-4 sticky top-16 z-40 bg-white/95 backdrop-blur-md pt-4 -mt-4 -mx-4 px-4 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)] rounded-t-xl transition-all">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                            <i class="fa-solid fa-th-umbtack text-indigo-600 mr-3"></i>ขั้นที่ 3: กำหนดคาบบังคับ / คาบว่าง
+                        </h2>
+                        <p class="text-sm text-gray-500 mt-2 flex items-center">
+                            <i class="fa-solid fa-circle-info mr-2"></i> คลิกช่องว่างในตารางเพื่อ <span class="font-semibold text-blue-600 mx-1">ล็อกคาบ/กิจกรรม</span> หรือ <span class="font-semibold text-red-500 mx-1">ล็อกเป็นคาบว่าง</span>
+                        </p>
+                    </div>
+                    
+                    <div class="flex flex-wrap items-center gap-3 bg-white p-2 rounded-xl shadow-sm border border-gray-200 w-full lg:w-auto">
+                        <div class="flex items-center space-x-2 px-2 border-r border-gray-200 pr-4">
+                            <label class="text-sm text-gray-600 font-medium">มุมมอง:</label>
+                            <select id="gridCols" class="border border-gray-300 rounded-md p-1.5 text-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50" onchange="renderStep3Grid()">
+                                <option value="1">1 ตาราง / แถว</option>
+                                <option value="2" selected>2 ตาราง / แถว</option>
+                                <option value="3">3 ตาราง / แถว</option>
+                                <option value="4">4 ตาราง / แถว</option>
                             </select>
                         </div>
+                        
+                        <button onclick="openBatchActivityModal()" class="bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 transition shadow flex items-center font-medium ml-auto">
+                            <i class="fa-solid fa-calendar-plus mr-2"></i>กำหนดคาบกิจกรรม
+                        </button>
                     </div>
-                <p class="text-sm text-gray-500 mb-4">คลิกที่คาบว่างในตารางของครูเพื่อ <span class="font-bold text-blue-600">กำหนดวิชาบังคับลงในคาบนั้น</span> หรือ <span class="font-bold text-red-500">กำหนดให้เป็นคาบว่าง (ล็อกไม่ให้จัดวิชาลง)</span></p>
+                </div>
                 
-                <!-- คอนเทนเนอร์แสดงตารางครูทั้งหมด -->
-                <div id="teacherGridsContainer" class="grid gap-4 mt-4 overflow-y-auto max-h-[600px] p-2 bg-gray-50 rounded-lg border border-gray-200">
-                    <!-- จะถูกสร้างผ่าน JS -->
+                <div id="teacherGridsContainer" class="mt-2 p-4 bg-gray-100/70 rounded-2xl border border-gray-200 min-h-[500px]">
+                    <div class="flex flex-col items-center justify-center h-64 text-gray-400">
+                        <i class="fa-solid fa-table-cells text-5xl mb-4 text-gray-300"></i>
+                        <p class="text-lg font-medium text-gray-500">กรุณาเพิ่มข้อมูลครูผู้สอนในขั้นที่ 2 ก่อน</p>
+                    </div>
                 </div>
             </div>
 
@@ -1741,23 +1749,27 @@
         
         const days = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'];
         
-        // ฟังก์ชันวาดตารางทั้งหมดของครูทุกคน
+     
+        // ฟังก์ชันวาดตารางทั้งหมดของครูทุกคน (UI ใหม่เหมือนหน้า 4)
         window.renderStep3Grid = () => {
             const container = document.getElementById('teacherGridsContainer');
-            if(!container) return; // เช็คว่ามีอิลิเมนต์นี้หรือยัง (กรณีหน้าจอไม่ได้รัน)
+            if(!container) return; 
+
+            const cols = document.getElementById('gridCols').value || 2;
             
-            const cols = document.getElementById('gridCols').value || 3;
-            // ตั้งค่า Grid คอลัมน์ด้วย Tailwind
-            container.className = `grid gap-6 mt-4 overflow-y-auto max-h-[600px] p-4 bg-gray-50 rounded-lg border border-gray-200 grid-cols-1 md:grid-cols-2 lg:grid-cols-${cols}`;
-            
+            // ใช้ Grid layout จัดการแถว และเอาขีดจำกัดความสูงออกเพื่อให้เลื่อนได้อิสระ
+            container.className = `grid gap-6 mt-2 p-2 grid-cols-1 xl:grid-cols-${cols}`;
             container.innerHTML = '';
-            
+
             if (!window.appState.teachers || window.appState.teachers.length === 0) {
-                container.innerHTML = '<div class="col-span-full text-center text-gray-500 py-10">ยังไม่มีข้อมูลครูผู้สอน กรุณาเพิ่มที่ขั้นที่ 2 ก่อน</div>';
+                container.innerHTML = `
+                    <div class="col-span-full flex flex-col items-center justify-center h-64 text-gray-400">
+                        <i class="fa-solid fa-table-cells text-5xl mb-4 text-gray-300"></i>
+                        <p class="text-lg font-medium text-gray-500">ยังไม่มีข้อมูลครูผู้สอน กรุณาเพิ่มที่ขั้นที่ 2 ก่อน</p>
+                    </div>`;
                 return;
             }
 
-            // จัดกลุ่มครู (เพราะ 1 คนอาจมีหลาย Row ใน Array teachers จากขั้นที่ 2)
             const groupedTeachers = {};
             window.appState.teachers.forEach(t => {
                 if(!groupedTeachers[t.name]) groupedTeachers[t.name] = [];
@@ -1765,60 +1777,91 @@
             });
 
             const periodsCount = parseInt(window.appState.config?.periods) || 9;
-            
-            // สร้าง State สำหรับเก็บข้อมูลตารางบังคับ (ถ้ายังไม่มี)
             if(!window.appState.fixedSchedule) window.appState.fixedSchedule = {};
 
-            // วนลูปวาดตารางของครูแต่ละคน
             Object.keys(groupedTeachers).forEach(teacherName => {
-                // โครงสร้าง HTML ตาราง 1 อัน
+                // โครงสร้าง Card แบบเดียวกับหน้า 4
                 let tableHTML = `
-                    <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <h4 class="font-bold text-gray-800 text-center mb-2 bg-blue-100 py-1 rounded">ตารางสอน: ${teacherName}</h4>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-xs text-center border-collapse">
+                    <div class="bg-white rounded-2xl shadow-sm border-2 border-gray-200 overflow-hidden transition-all duration-300 flex flex-col">
+                        
+                        <div class="flex justify-between items-center p-4 bg-white border-b border-gray-100">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-lg mr-3">
+                                    <i class="fa-solid fa-th-umbtack"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800 text-base leading-tight">${teacherName}</h4>
+                                    <p class="text-xs text-gray-500 mt-0.5">คลิกช่องว่างในตารางเพื่อล็อกคาบ</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="overflow-x-auto p-4 bg-gray-50/50 flex-grow">
+                            <table class="w-full text-sm text-center border-collapse min-w-[700px]">
                                 <thead>
-                                    <tr class="bg-gray-100">
-                                        <th class="border p-1 w-12">วัน</th>`;
-                // หัวตารางคาบ
+                                    <tr>
+                                        <th class="border border-gray-200 bg-white p-2 w-16 text-gray-500 font-medium rounded-tl-lg">วัน</th>`;
+                
+                // หัวตารางคาบ + เวลา
                 for(let p = 1; p <= periodsCount; p++) {
-                    tableHTML += `<th class="border p-1">คาบ ${p}</th>`;
+                    let timeStr = window.appState.periodTimes ? window.appState.periodTimes[p-1] : "";
+                    tableHTML += `
+                                        <th class="border border-gray-200 bg-blue-500 text-white p-2 w-24">
+                                            <div class="font-bold">คาบ ${p}</div>
+                                            <div class="text-[10px] font-normal opacity-90 mt-0.5">${timeStr}</div>
+                                        </th>`;
                 }
                 tableHTML += `      </tr>
                                 </thead>
                                 <tbody>`;
-                
-                // วนลูป 5 วัน
+
                 days.forEach((day, dIndex) => {
-                    tableHTML += `<tr><td class="border p-1 font-semibold bg-gray-50">${day}</td>`;
+                    let dayBg = dIndex % 2 === 0 ? "bg-white" : "bg-gray-50";
+                    tableHTML += `<tr><td class="border border-gray-200 ${dayBg} p-2 font-bold text-gray-700">${day}</td>`;
+                    
                     for(let p = 1; p <= periodsCount; p++) {
-                        // ดึงข้อมูลที่เคยล็อกไว้ (ถ้ามี)
                         const key = `${teacherName}_${dIndex}_${p}`;
-                        const cellData = window.appState.fixedSchedule[key]; // { type: 'empty' หรือ 'subject', label: 'ชื่อย่อ+ห้อง' }
+                        const cellData = window.appState.fixedSchedule[key];
                         
                         let cellContent = '';
-                        let cellClass = 'hover:bg-blue-50 cursor-pointer transition';
+                        let cellClass = `border border-gray-200 h-16 transition cursor-pointer hover:bg-indigo-50/70 ${dayBg}`;
                         
                         if (cellData) {
                             if (cellData.type === 'empty') {
-                                cellContent = '<i class="fa-solid fa-ban text-red-400"></i>';
-                                cellClass = 'bg-red-50 cursor-pointer';
+                                cellContent = `
+                                    <div class="flex flex-col items-center justify-center text-red-400 h-full w-full">
+                                        <i class="fa-solid fa-ban mb-1"></i>
+                                        <span class="text-xs font-medium">${cellData.label || 'ว่าง'}</span>
+                                    </div>`;
+                                cellClass += ' bg-red-50/50 hover:bg-red-100';
                             } else if (cellData.type === 'subject') {
-                                cellContent = `<span class="font-bold text-blue-700">${cellData.label}</span>`;
-                                cellClass = 'bg-blue-100 cursor-pointer border-blue-300';
+                                let parts = cellData.label.split(' ');
+                                let subj = parts.length > 1 ? parts.slice(0, -1).join(' ') : cellData.label;
+                                let room = parts.length > 1 ? parts[parts.length - 1] : "";
+                                
+                                // แยกสีถ้าเป็นคาบกิจกรรมให้เป็นสีม่วง
+                                let activityClass = cellData.isActivity ? "bg-purple-50 border-purple-200" : "bg-indigo-50 border-indigo-200";
+                                let textClass = cellData.isActivity ? "text-purple-700" : "text-indigo-700";
+                                let subClass = cellData.isActivity ? "text-purple-500" : "text-indigo-500";
+
+                                cellContent = `
+                                    <div class="w-full h-full p-1">
+                                        <div class="${activityClass} border rounded-md h-full flex flex-col items-center justify-center transition shadow-sm hover:shadow-md">
+                                            <span class="font-bold ${textClass} leading-tight text-xs">${subj}</span>
+                                            <span class="text-[10px] ${subClass} font-medium mt-0.5">${room}</span>
+                                        </div>
+                                    </div>`;
                             }
+                        } else {
+                            // ช่องว่างให้มีไอคอน + จางๆ เวลานำเมาส์ไปชี้
+                            cellContent = `<div class="w-full h-full flex items-center justify-center opacity-0 hover:opacity-100 text-indigo-300 text-lg"><i class="fa-solid fa-plus"></i></div>`;
                         }
                         
-                        tableHTML += `<td class="border p-1 h-10 w-16 ${cellClass}" onclick="openAssignModal('${teacherName}', ${dIndex}, ${p})">${cellContent}</td>`;
+                        tableHTML += `<td class="${cellClass}" onclick="openAssignModal('${teacherName}', ${dIndex}, ${p})">${cellContent}</td>`;
                     }
                     tableHTML += `</tr>`;
                 });
-
-                tableHTML += `
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>`;
+                tableHTML += `</tbody></table></div></div>`;
                 
                 container.innerHTML += tableHTML;
             });
