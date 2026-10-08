@@ -198,28 +198,41 @@
 
             <!-- Step 4: Schedule Generation (Drag & Drop) -->
             <div id="step4" class="step-content">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 border-b pb-2">
-                    <h2 class="text-2xl font-bold text-gray-700"><i class="fa-solid fa-wand-magic-sparkles text-blue-600 mr-2"></i>ขั้นที่ 4: จัดตารางสอน</h2>
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4 border-b border-gray-200 pb-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                            <i class="fa-solid fa-wand-magic-sparkles text-indigo-600 mr-3"></i>ขั้นที่ 4: จัดตารางสอน
+                        </h2>
+                        <p class="text-sm text-gray-500 mt-2 flex items-center">
+                            <i class="fa-solid fa-circle-info mr-2"></i> ลากสลับคาบได้อิสระ หากโยกย้ายต้องกด <span class="font-semibold text-red-500 mx-1">"ตรวจคาบชนกัน"</span> เสมอ
+                        </p>
+                    </div>
                     
-                    <div class="flex flex-wrap gap-2 mt-2 md:mt-0">
-                        <select id="gridColsStep4" class="border border-gray-300 rounded p-1 text-sm bg-white" onchange="renderStep4Grid()">
-                            <option value="1">1 ตาราง/แถว</option>
-                            <option value="2">2 ตาราง/แถว</option>
-                            <option value="3" selected>3 ตาราง/แถว</option>
-                        </select>
-                        <button class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 shadow hidden flex items-center font-bold animate-pulse" id="btnCheckConflict" onclick="checkConflicts()">
-                            <i class="fa-solid fa-triangle-exclamation mr-2"></i>ตรวจคาบชนกัน
+                    <div class="flex flex-wrap items-center gap-3 bg-white p-2 rounded-xl shadow-sm border border-gray-200 w-full lg:w-auto">
+                        <div class="flex items-center space-x-2 px-2 border-r border-gray-200 pr-4">
+                            <label class="text-sm text-gray-600 font-medium">มุมมอง:</label>
+                            <select id="gridColsStep4" class="border border-gray-300 rounded-md p-1.5 text-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50" onchange="renderStep4Grid()">
+                                <option value="1">1 ตาราง / แถว</option>
+                                <option value="2" selected>2 ตาราง / แถว</option>
+                                <option value="3">3 ตาราง / แถว</option>
+                            </select>
+                        </div>
+                        
+                        <button class="bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-100 transition shadow-sm hidden flex items-center font-bold" id="btnCheckConflict" onclick="checkConflicts()">
+                            <i class="fa-solid fa-triangle-exclamation mr-2 animate-pulse"></i>ตรวจคาบชนกัน
                         </button>
-                        <button class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shadow flex items-center" onclick="generateAutoSchedule()">
-                            <i class="fa-solid fa-wand-magic-sparkles mr-2"></i>สุ่มจัดใหม่ (ข้ามคนที่ล็อก)
+                        
+                        <button class="bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 transition shadow flex items-center font-medium ml-auto" onclick="generateAutoSchedule()">
+                            <i class="fa-solid fa-rotate mr-2"></i>สุ่มจัดใหม่ (ข้ามคนที่ล็อก)
                         </button>
                     </div>
+                </div>
                 
-                <p class="text-sm text-gray-500 mb-4">* สามารถใช้เมาส์ลาก (Drag & Drop) สลับคาบสอนได้อิสระ หากลากสลับแล้ว ต้องกดปุ่ม <span class="text-red-500 font-bold">"ตรวจการชนกัน"</span> เสมอ</p>
-                
-                <div id="scheduleGridsContainer" class="grid gap-4 mt-4 overflow-y-auto max-h-[600px] p-2 bg-gray-50 rounded-lg border border-gray-200">
-                    <!-- ตารางสำหรับลากวางจะถูกสร้างที่นี่ -->
-                    <div class="text-center text-gray-400 py-10">กรุณากดปุ่ม "สุ่มตาราง (Auto)" เพื่อเริ่มจัดตารางสอน</div>
+                <div id="scheduleGridsContainer" class="mt-2 p-4 bg-gray-100/70 rounded-2xl border border-gray-200 min-h-[500px]">
+                    <div class="flex flex-col items-center justify-center h-64 text-gray-400">
+                        <i class="fa-solid fa-table-cells text-5xl mb-4 text-gray-300"></i>
+                        <p class="text-lg font-medium text-gray-500">กรุณากดปุ่ม "สุ่มจัดใหม่" ด้านบนเพื่อเริ่มดำเนินการ</p>
+                    </div>
                 </div>
             </div>
 
@@ -1011,22 +1024,29 @@
             window.autoSave();
         };
 
-        // 3. ฟังก์ชันวาดตาราง Drag & Drop
+        // 3. ฟังก์ชันวาดตาราง Drag & Drop (UI ใหม่)
         window.renderStep4Grid = () => {
             const container = document.getElementById('scheduleGridsContainer');
             if(!container) return;
             
-            const cols = document.getElementById('gridColsStep4').value || 3;
-            container.className = `grid gap-6 mt-4 overflow-y-auto max-h-[600px] p-4 bg-gray-50 rounded-lg border border-gray-200 grid-cols-1 md:grid-cols-2 lg:grid-cols-${cols}`;
+            const cols = document.getElementById('gridColsStep4').value || 2; // Default 2 ดูง่ายสุด
+            
+            // ใช้ Grid layout จัดการแถว
+            container.className = `grid gap-6 mt-2 overflow-y-auto max-h-[700px] p-2 grid-cols-1 xl:grid-cols-${cols}`;
             container.innerHTML = '';
             
             if (!window.appState.generatedSchedule) {
-                container.innerHTML = '<div class="col-span-full text-center text-gray-500 py-10">กรุณากดปุ่ม "สุ่มจัดใหม่" เพื่อเริ่มจัดตารางสอน</div>';
+                container.innerHTML = `
+                    <div class="col-span-full flex flex-col items-center justify-center h-64 text-gray-400">
+                        <i class="fa-solid fa-table-cells text-5xl mb-4 text-gray-300"></i>
+                        <p class="text-lg font-medium text-gray-500">กรุณากดปุ่ม "สุ่มจัดใหม่" เพื่อเริ่มดำเนินการ</p>
+                    </div>`;
                 return;
             }
 
             if (!window.appState.lockedTeachers) window.appState.lockedTeachers = {};
             const periodsCount = parseInt(window.appState.config?.periods) || 9;
+            
             const groupedTeachers = {};
             window.appState.teachers.forEach(t => {
                 if(!groupedTeachers[t.name]) groupedTeachers[t.name] = [];
@@ -1035,47 +1055,95 @@
 
             Object.keys(groupedTeachers).forEach(teacherName => {
                 let isLocked = window.appState.lockedTeachers[teacherName];
-                let headerClass = isLocked ? "bg-green-200 text-green-900 border-green-400" : "bg-indigo-100 text-indigo-900 border-indigo-200";
-                let lockIcon = isLocked ? '<i class="fa-solid fa-lock text-green-700"></i> ล็อกสำเร็จ' : '<i class="fa-solid fa-unlock text-gray-400"></i> ปลดล็อก';
+                
+                // สีและสถานะของการล็อกตาราง
+                let cardBorder = isLocked ? "border-green-400 shadow-green-100" : "border-gray-200 shadow-sm hover:shadow-md";
+                let headerBg = isLocked ? "bg-green-50" : "bg-white";
+                let btnStyle = isLocked 
+                    ? "bg-green-100 text-green-700 hover:bg-green-200 border-green-300" 
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-300";
+                let lockIcon = isLocked ? '<i class="fa-solid fa-lock mr-1"></i> ล็อกตารางแล้ว' : '<i class="fa-solid fa-unlock mr-1"></i> ปลดล็อกอยู่';
 
+                // โครงสร้าง Card
                 let tableHTML = `
-                    <div class="bg-white p-3 rounded-xl shadow-sm border ${isLocked ? 'border-green-300' : 'border-gray-200'} overflow-hidden relative">
-                        <div class="flex justify-between items-center mb-2 ${headerClass} py-1 px-3 rounded border">
-                            <h4 class="font-bold">ตาราง: ${teacherName}</h4>
-                            <button onclick="toggleTeacherLock('${teacherName}')" class="text-xs font-bold px-2 py-1 bg-white rounded shadow-sm hover:bg-gray-50 transition">
+                    <div class="bg-white rounded-2xl shadow-sm border-2 ${cardBorder} overflow-hidden transition-all duration-300 flex flex-col">
+                        
+                        <div class="flex justify-between items-center p-4 ${headerBg} border-b border-gray-100">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-lg mr-3">
+                                    <i class="fa-solid fa-chalkboard-user"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800 text-base leading-tight">${teacherName}</h4>
+                                    <p class="text-xs text-gray-500 mt-0.5">ลากสลับคาบในตารางได้</p>
+                                </div>
+                            </div>
+                            <button onclick="toggleTeacherLock('${teacherName}')" class="text-xs font-bold px-3 py-1.5 rounded-lg border shadow-sm transition flex items-center ${btnStyle}">
                                 ${lockIcon}
                             </button>
                         </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-xs text-center border-collapse">
+                        
+                        <div class="overflow-x-auto p-4 bg-gray-50/50 flex-grow">
+                            <table class="w-full text-sm text-center border-collapse min-w-[700px]">
                                 <thead>
-                                    <tr class="bg-gray-100"><th class="border p-1 w-12">วัน</th>`;
-                for(let p = 1; p <= periodsCount; p++) tableHTML += `<th class="border p-1">คาบ ${p}</th>`;
-                tableHTML += `</tr></thead><tbody>`;
+                                    <tr>
+                                        <th class="border border-gray-200 bg-white p-2 w-16 text-gray-500 font-medium rounded-tl-lg">วัน</th>`;
                 
+                // สร้างหัวตารางคาบ + เวลา
+                for(let p = 1; p <= periodsCount; p++) {
+                    let timeStr = window.appState.periodTimes ? window.appState.periodTimes[p-1] : "";
+                    tableHTML += `
+                                        <th class="border border-gray-200 bg-blue-500 text-white p-2 w-24">
+                                            <div class="font-bold">คาบ ${p}</div>
+                                            <div class="text-[10px] font-normal opacity-90 mt-0.5">${timeStr}</div>
+                                        </th>`;
+                }
+                tableHTML += `      </tr>
+                                </thead>
+                                <tbody>`;
+                
+                // สร้างข้อมูลในตาราง
                 days.forEach((day, dIndex) => {
-                    tableHTML += `<tr><td class="border p-1 font-semibold bg-gray-50">${day}</td>`;
+                    let dayBg = dIndex % 2 === 0 ? "bg-white" : "bg-gray-50";
+                    tableHTML += `<tr><td class="border border-gray-200 ${dayBg} p-2 font-bold text-gray-700">${day}</td>`;
+                    
                     for(let p = 1; p <= periodsCount; p++) {
                         const key = `${teacherName}_${dIndex}_${p}`;
                         const cellData = window.appState.generatedSchedule[key];
                         
                         let cellContent = '';
-                        let cellClass = 'h-12 w-16 transition droppable-cell';
+                        let cellClass = `border border-gray-200 h-16 transition droppable-cell ${dayBg}`;
                         let dragAttr = `ondragover="allowDrop(event)" ondrop="handleDrop(event, '${key}')"`;
                         
                         if (cellData) {
                             if (cellData.type === 'empty') {
-                                cellContent = `<i class="fa-solid fa-ban text-red-400"></i> ${cellData.label ? '<br><span class="text-[10px]">'+cellData.label+'</span>' : ''}`;
-                                cellClass += ' bg-red-50';
+                                // กรณีคาบว่าง / พักเที่ยง
+                                cellContent = `
+                                    <div class="flex flex-col items-center justify-center text-gray-400 h-full w-full">
+                                        <i class="fa-solid fa-mug-hot mb-1 text-gray-300"></i>
+                                        <span class="text-xs font-medium">${cellData.label || 'ว่าง'}</span>
+                                    </div>`;
+                                cellClass += ' bg-gray-100/80';
                             } else if (cellData.type === 'subject') {
-                                cellContent = `<div class="w-full h-full flex flex-col items-center justify-center font-bold text-indigo-800 cursor-move" draggable="true" ondragstart="handleDragStart(event, '${key}')">${cellData.label.replace(' ', '<br>')}</div>`;
-                                cellClass += ' bg-indigo-50 border-indigo-200 hover:bg-indigo-100';
+                                // กรณีมีวิชาเรียน (ทำให้อ่านง่ายขึ้น)
+                                let parts = cellData.label.split(' ');
+                                let subj = parts.slice(0, -1).join(' '); // ชื่อวิชา
+                                let room = parts[parts.length - 1]; // ห้อง
+                                
+                                cellContent = `
+                                    <div class="w-full h-full p-1 cursor-move" draggable="true" ondragstart="handleDragStart(event, '${key}')">
+                                        <div class="bg-indigo-50 border border-indigo-200 hover:border-indigo-400 hover:shadow-md rounded-md h-full flex flex-col items-center justify-center transition">
+                                            <span class="font-bold text-indigo-700 leading-tight">${subj}</span>
+                                            <span class="text-xs text-indigo-500 font-medium mt-0.5">${room}</span>
+                                        </div>
+                                    </div>`;
                             }
                         } else {
-                            cellClass += ' hover:bg-gray-100';
+                            // ช่องว่างที่ยังไม่ได้จัด
+                            cellClass += ' hover:bg-indigo-50/50';
                         }
                         
-                        tableHTML += `<td id="cell_${key}" class="border p-1 ${cellClass}" ${dragAttr}>${cellContent}</td>`;
+                        tableHTML += `<td id="cell_${key}" class="${cellClass}" ${dragAttr}>${cellContent}</td>`;
                     }
                     tableHTML += `</tr>`;
                 });
