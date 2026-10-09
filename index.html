@@ -2856,10 +2856,10 @@ window.saveTeacher = () => {
 
             const payload = window.buildDocData(exportData, config);
 
-            // ⚠️ วาง URL ของ Google Apps Script ที่ Deploy แล้ว ตรงนี้
+            // ⚠️ อัปเดต URL ของ Google Apps Script ที่คุณให้มาเรียบร้อยแล้ว
             const GAS_URL = "https://script.google.com/macros/s/AKfycbyimXdzLC6VYD_mcru9PvEGiGNb6P1F7PMj3FRktN8ZljUeOI93fjU6Shhbfj_h0H-U/exec"; 
 
-            if(GAS_URL === "https://script.google.com/macros/s/AKfycbyimXdzLC6VYD_mcru9PvEGiGNb6P1F7PMj3FRktN8ZljUeOI93fjU6Shhbfj_h0H-U/exec") {
+            if(GAS_URL === "วาง_URL_จาก_APPS_SCRIPT_ตรงนี้") {
                 window.hideLoader();
                 showAppAlert('ข้อผิดพลาด', 'กรุณานำ URL จาก Google Apps Script มาใส่ในโค้ด JavaScript ก่อนครับ', 'error');
                 return;
@@ -2891,7 +2891,7 @@ window.saveTeacher = () => {
                 showAppAlert('ข้อผิดพลาด', 'การเชื่อมต่อกับ Google Docs ขัดข้อง', 'error');
             });
         };
-
+    
         // แทรกการรัน Live Preview ตอนเข้าหน้า 6
         const originalUpdateUI6 = window.updateUI || function(){};
         window.updateUI = function() {
