@@ -2605,8 +2605,10 @@ window.saveTeacher = () => {
                 if (cellData.type === 'subject') {
                     let [tName, d, p] = key.split('_');
                     let parts = cellData.label.split(' ');
-                    let subjAbbr = parts.length > 1 ? parts.slice(0, -1).join(' ') : cellData.label; 
-                    let sRoom = parts.length > 1 ? parts[parts.length - 1] : ""; // ห้องนักเรียน
+                    
+                    // ปรับการดึงข้อมูลเพื่อแยกวิชาปกติ กับ คาบกิจกรรม
+                    let subjAbbr = cellData.isActivity ? cellData.label : (parts.length > 1 ? parts.slice(0, -1).join(' ') : cellData.label); 
+                    let sRoom = cellData.isActivity ? "" : (parts.length > 1 ? parts[parts.length - 1] : ""); // ห้องนักเรียน
                     let subjCode = cellData.isActivity ? "" : (tCodeMap[tName] || "");
                     let pRoom = assigned[key] || ""; // ห้องกายภาพ (สอนที่ไหน)
 
@@ -2617,7 +2619,19 @@ window.saveTeacher = () => {
                     data.teachers[tName][`${d}_${p}`] = entry;
 
                     // 2. ตารางนักเรียน
-                    if (sRoom && !cellData.isActivity) { // กิจกรรมอาจซ้อนกัน ข้ามก่อน
+                    if (cellData.isActivity) {
+                        // ถ้าเป็นกิจกรรม ให้กระจายลงตารางนักเรียนตาม "ห้องที่ครูท่านนี้รับผิดชอบ"
+                        let t = teacherDb.find(tx => tx.name === tName);
+                        if (t && t.rooms) {
+                            let tRooms = t.rooms.split(',').map(r => r.trim()).filter(r => r);
+                            tRooms.forEach(room => {
+                                if(!data.students[room]) data.students[room] = {};
+                                // ก็อปปี้ entry แต่ระบุชื่อห้องนักเรียนเข้าไปด้วย
+                                data.students[room][`${d}_${p}`] = { ...entry, sRoom: room };
+                            });
+                        }
+                    } else if (sRoom) {
+                        // ถ้าเป็นวิชาปกติ
                         if(!data.students[sRoom]) data.students[sRoom] = {};
                         data.students[sRoom][`${d}_${p}`] = entry;
                     }
@@ -2772,7 +2786,7 @@ window.saveTeacher = () => {
             };
 
             let gridClass = cols === 2 ? "grid grid-cols-2 gap-4" : "flex flex-col space-y-6";
-            let printHTML = `<div class="${gridClass} w-full" style="font-family: 'Prompt', sans-serif;">`;
+            let printHTML = `<div class="${gridClass} w-full text-black bg-white" style="font-family: 'Prompt', sans-serif;">`;
 
             if (currentExportTab === 'teacher') {
                 Object.keys(exportData.teachers).sort().forEach(tName => {
@@ -2790,35 +2804,34 @@ window.saveTeacher = () => {
             }
             printHTML += `</div>`;
 
-            // สร้าง Container เสมือนจริงเพื่อวาด PDF (ซ่อนไว้หลังจอ)
+            // สร้าง Container ให้ html2pdf มองเห็น (แก้ปัญหาหน้าจอขาว)
             const container = document.createElement('div');
             container.innerHTML = printHTML;
-            container.style.width = '210mm'; // ล็อกความกว้างเท่ากระดาษ A4
+            container.style.width = '210mm'; 
             container.style.padding = '10mm'; 
             container.style.backgroundColor = 'white';
             container.style.position = 'absolute';
-            container.style.left = '-9999px';
             container.style.top = '0';
+            container.style.left = '0';
+            container.style.zIndex = '-1'; // เอาไปซ่อนไว้ข้างหลังสุด จะได้ไม่ถูกเบราว์เซอร์บีบ
             document.body.appendChild(container);
 
-            // ตั้งค่าการพิมพ์ PDF
             const opt = {
                 margin:       0, 
                 filename:     `ตารางสอน_${currentExportTab}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true, windowWidth: 794 }, // 794px คือความกว้างของ A4 (96dpi)
+                image:        { type: 'jpeg', quality: 1 },
+                html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                pagebreak:    { mode: 'css', avoid: '.print-page-break' } // ป้องกันตารางขาดครึ่งหน้าเป๊ะๆ
+                pagebreak:    { mode: 'css', avoid: '.print-page-break' } // กันตารางขาดครึ่ง
             };
 
-            // เรียกใช้ html2pdf เพื่อเซฟลงเครื่องทันที
             html2pdf().set(opt).from(container).save().then(() => {
-                document.body.removeChild(container);
+                if(document.body.contains(container)) document.body.removeChild(container);
                 window.hideLoader();
                 showAppAlert('ดาวน์โหลดสำเร็จ', 'ไฟล์ PDF ถูกบันทึกลงในเครื่องของคุณเรียบร้อยแล้ว', 'success');
             }).catch(err => {
                 console.error(err);
-                document.body.removeChild(container);
+                if(document.body.contains(container)) document.body.removeChild(container);
                 window.hideLoader();
                 showAppAlert('เกิดข้อผิดพลาด', 'ไม่สามารถสร้างไฟล์ PDF ได้', 'error');
             });
@@ -2830,8 +2843,8 @@ window.saveTeacher = () => {
             originalUpdateUI6();
             if(window.appState && window.appState.currentStep === 6) {
                 setTimeout(() => { 
-                    if(document.getElementById('cfgCheckboxes').innerHTML.trim() === "") switchExportTab('teacher');
-                    else renderLivePreview(); 
+                    // สั่งสลับแท็บเพื่อสร้าง Checkbox ขึ้นมาแสดงให้เลือกทันที (แก้บั๊กหายตอนแรก)
+                    switchExportTab(currentExportTab); 
                 }, 100);
             }
         };
