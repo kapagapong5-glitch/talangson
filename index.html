@@ -2306,7 +2306,6 @@ window.saveTeacher = () => {
 
         // สั่งบันทึกและนำห้องไปใส่ในตาราง
         window.applyRoomAssignments = () => {
-            // ⚠️ FIX: ป้องกันบั๊ก Firebase จุดที่ 2 ก่อนจับข้อมูลลงตัวแปร
             if (!window.appState.roomMappingConfig) window.appState.roomMappingConfig = {};
             if (!window.appState.roomMappingConfig.classRooms) window.appState.roomMappingConfig.classRooms = {};
             if (!window.appState.roomMappingConfig.teacherRooms) window.appState.roomMappingConfig.teacherRooms = {};
@@ -2325,7 +2324,8 @@ window.saveTeacher = () => {
                 let data = window.appState.generatedSchedule[key];
                 if(data.type === 'subject') {
                     if(data.isActivity) {
-                        window.appState.assignedRooms[key] = "ลานกิจกรรม"; 
+                        // ปล่อยเป็นค่าว่างแทน ลานกิจกรรม เพื่อให้ไม่ต้องแสดงถ้าไม่จำเป็น
+                        window.appState.assignedRooms[key] = ""; 
                         continue;
                     }
                     
@@ -2347,6 +2347,7 @@ window.saveTeacher = () => {
             
             // ปิด Modal และวาดตารางใหม่
             closeRoomSettingsModal();
+            
             window.renderStep5Grid();
             window.autoSave();
             showAppAlert('สำเร็จ', 'ลงห้องเรียนในตารางเรียบร้อยแล้ว<br>ตารางพร้อมให้แก้ไขและระบุห้องเพิ่มเติมได้ทันที', 'success');
@@ -2682,15 +2683,26 @@ window.saveTeacher = () => {
                         } else if (config.tab === 'student') {
                             content += config.showSubjAbbr ? `<div class="font-bold text-[11px] leading-tight">${cell.subjAbbr}</div>` : '';
                             content += (config.showSubjCode && cell.subjCode) ? `<div class="text-[9px] leading-tight">${cell.subjCode}</div>` : '';
-                            let tNameDisplay = config.showTeacherShort ? window.getShortTeacherName(cell.tName) : cell.tName;
-                            content += tNameDisplay ? `<div class="text-[10px] leading-tight text-gray-700">${tNameDisplay}</div>` : '';
-                            content += (config.showTeachRoom && cell.pRoom) ? `<div class="text-[9px] leading-tight mt-0.5 font-semibold">ห้อง: ${cell.pRoom}</div>` : '';
+                            
+                            // ไม่แสดงชื่อครูถ้าเป็นคาบกิจกรรม
+                            if (!cell.isActivity) {
+                                let tNameDisplay = config.showTeacherShort ? window.getShortTeacherName(cell.tName) : cell.tName;
+                                content += tNameDisplay ? `<div class="text-[10px] leading-tight text-gray-700">${tNameDisplay}</div>` : '';
+                            }
+                            
+                            // แสดงห้องเฉพาะที่มีค่าและไม่ใช่ค่าว่าง
+                            if (config.showTeachRoom && cell.pRoom && cell.pRoom !== "-" && cell.pRoom !== "ลานกิจกรรม") {
+                                content += `<div class="text-[9px] leading-tight mt-0.5 font-semibold">ห้อง: ${cell.pRoom}</div>`;
+                            }
                         } else if (config.tab === 'room') {
                             content += config.showSubjAbbr ? `<div class="font-bold text-[11px] leading-tight">${cell.subjAbbr}</div>` : '';
                             content += (config.showSubjCode && cell.subjCode) ? `<div class="text-[9px] leading-tight">${cell.subjCode}</div>` : '';
-                            // ให้แสดงชื่อครูแบบสั้นเหมือนนักเรียน
-                            let tNameDisplayRoom = window.getShortTeacherName(cell.tName);
-                            content += config.showTeacherName ? `<div class="text-[10px] leading-tight text-gray-700 font-medium">${tNameDisplayRoom}</div>` : '';
+                            
+                            // ไม่แสดงชื่อครูถ้าเป็นคาบกิจกรรม
+                            if (!cell.isActivity) {
+                                let tNameDisplayRoom = window.getShortTeacherName(cell.tName);
+                                content += config.showTeacherName ? `<div class="text-[10px] leading-tight text-gray-700 font-medium">${tNameDisplayRoom}</div>` : '';
+                            }
                             content += config.showStudentRoom ? `<div class="font-bold text-[10px] leading-tight mt-0.5 bg-gray-100 rounded inline-block px-1 border border-gray-300 shadow-sm">${cell.sRoom}</div>` : '';
                         }
                     }
@@ -2756,7 +2768,6 @@ window.saveTeacher = () => {
         window.executeDownload = () => {
             window.showLoader();
             
-            // โหลดไลบรารี html2pdf อัตโนมัติ (เฉพาะเมื่อกดโหลดครั้งแรก)
             if (typeof html2pdf === 'undefined') {
                 const script = document.createElement('script');
                 script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
@@ -2804,7 +2815,7 @@ window.saveTeacher = () => {
             }
             printHTML += `</div>`;
 
-            // สร้าง Container ให้ html2pdf มองเห็น (แก้ปัญหาหน้าจอขาว)
+            // แก้บั๊ก PDF หน้าขาว: วางตารางไว้ข้างหลังหน้าจอโหลด (z-index: 50) เพื่อให้ระบบมองเห็น แต่ผู้ใช้ไม่เห็น
             const container = document.createElement('div');
             container.innerHTML = printHTML;
             container.style.width = '210mm'; 
@@ -2813,7 +2824,7 @@ window.saveTeacher = () => {
             container.style.position = 'absolute';
             container.style.top = '0';
             container.style.left = '0';
-            container.style.zIndex = '-1'; // เอาไปซ่อนไว้ข้างหลังสุด จะได้ไม่ถูกเบราว์เซอร์บีบ
+            container.style.zIndex = '50'; // ให้อยู่ใต้หน้าจอ Loader (z-100) จะได้ไม่รบกวนสายตา แต่ระบบมองเห็น
             document.body.appendChild(container);
 
             const opt = {
@@ -2822,7 +2833,7 @@ window.saveTeacher = () => {
                 image:        { type: 'jpeg', quality: 1 },
                 html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                pagebreak:    { mode: 'css', avoid: '.print-page-break' } // กันตารางขาดครึ่ง
+                pagebreak:    { mode: 'css', avoid: '.print-page-break' }
             };
 
             html2pdf().set(opt).from(container).save().then(() => {
