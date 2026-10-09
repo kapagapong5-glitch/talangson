@@ -2831,7 +2831,8 @@ window.saveTeacher = () => {
                 schoolName: config.schoolName,
                 year: config.year,
                 footer: config.footer,
-                tables: tables
+                tables: tables,
+                cols: config.cols // ส่งค่า 1 หรือ 2 คอลัมน์ให้ Google Docs ทราบ
             };
         };
 
@@ -2852,6 +2853,7 @@ window.saveTeacher = () => {
                 showTeachRoom: document.getElementById('chkTeachRoom')?.checked ?? true,
                 showTeacherShort: document.getElementById('chkTeacherShort')?.checked ?? true,
                 showTeacherName: document.getElementById('chkTeacherName')?.checked ?? true,
+                cols: parseInt(document.getElementById('cfgColumns').value) || 1 // อ่านค่าจาก Dropdown
             };
 
             const payload = window.buildDocData(exportData, config);
