@@ -2764,21 +2764,10 @@ window.saveTeacher = () => {
             container.innerHTML = `<div class="w-full max-w-3xl">${previewHTML}</div>`;
         };
 
-        // สั่งสร้างเอกสารและดาวน์โหลด PDF ทันที (Direct PDF Download)
+        // สั่งสร้างเอกสารโดยเปิดหน้าต่างใหม่ แล้วใช้ระบบ Print/Save as PDF ของเบราว์เซอร์
         window.executeDownload = () => {
             window.showLoader();
             
-            if (typeof html2pdf === 'undefined') {
-                const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-                script.onload = () => generatePDFDirectly();
-                document.head.appendChild(script);
-            } else {
-                generatePDFDirectly();
-            }
-        };
-
-        const generatePDFDirectly = () => {
             const exportData = window.buildExportData();
             const cols = parseInt(document.getElementById('cfgColumns').value) || 1;
             
@@ -2815,37 +2804,48 @@ window.saveTeacher = () => {
             }
             printHTML += `</div>`;
 
-            // แก้บั๊ก PDF หน้าขาว: วางตารางไว้ข้างหลังหน้าจอโหลด (z-index: 50) เพื่อให้ระบบมองเห็น แต่ผู้ใช้ไม่เห็น
-            const container = document.createElement('div');
-            container.innerHTML = printHTML;
-            container.style.width = '210mm'; 
-            container.style.padding = '10mm'; 
-            container.style.backgroundColor = 'white';
-            container.style.position = 'absolute';
-            container.style.top = '0';
-            container.style.left = '0';
-            container.style.zIndex = '50'; // ให้อยู่ใต้หน้าจอ Loader (z-100) จะได้ไม่รบกวนสายตา แต่ระบบมองเห็น
-            document.body.appendChild(container);
+            // เปิดหน้าต่างใหม่ (Blank Page)
+            const printWindow = window.open('', '_blank');
+            
+            // สร้างหน้าเว็บเปล่าๆ พร้อมใส่ CSS และตารางลงไป
+            const fullHTML = `
+            <!DOCTYPE html>
+            <html lang="th">
+            <head>
+                <meta charset="UTF-8">
+                <title>ดาวน์โหลดตารางสอน</title>
+                <!-- โหลด Tailwind และ Font -->
+                <script src="https://cdn.tailwindcss.com"><\/script>
+                <style>
+                    @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
+                    body { font-family: 'Prompt', sans-serif; background-color: white; color: black; margin: 0; padding: 0; }
+                    .print-page-break { page-break-inside: avoid; break-inside: avoid; margin-bottom: 20px; }
+                    
+                    /* ตั้งค่ากระดาษ A4 แนวตั้ง */
+                    @media print {
+                        @page { size: A4 portrait; margin: 10mm; }
+                        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    }
+                </style>
+            </head>
+            <body>
+                ${printHTML}
+                <script>
+                    // รอให้ Tailwind ทำงานเสร็จ 1 วินาที แล้วเปิดหน้าต่าง Print อัตโนมัติ
+                    setTimeout(() => {
+                        window.print();
+                    }, 1000);
+                <\/script>
+            </body>
+            </html>
+            `;
 
-            const opt = {
-                margin:       0, 
-                filename:     `ตารางสอน_${currentExportTab}.pdf`,
-                image:        { type: 'jpeg', quality: 1 },
-                html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                pagebreak:    { mode: 'css', avoid: '.print-page-break' }
-            };
+            // เขียนข้อมูลลงหน้าต่างใหม่
+            printWindow.document.open();
+            printWindow.document.write(fullHTML);
+            printWindow.document.close();
 
-            html2pdf().set(opt).from(container).save().then(() => {
-                if(document.body.contains(container)) document.body.removeChild(container);
-                window.hideLoader();
-                showAppAlert('ดาวน์โหลดสำเร็จ', 'ไฟล์ PDF ถูกบันทึกลงในเครื่องของคุณเรียบร้อยแล้ว', 'success');
-            }).catch(err => {
-                console.error(err);
-                if(document.body.contains(container)) document.body.removeChild(container);
-                window.hideLoader();
-                showAppAlert('เกิดข้อผิดพลาด', 'ไม่สามารถสร้างไฟล์ PDF ได้', 'error');
-            });
+            window.hideLoader();
         };
 
         // แทรกการรัน Live Preview ตอนเข้าหน้า 6
