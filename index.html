@@ -2651,7 +2651,7 @@ window.saveTeacher = () => {
         // ฟังก์ชันวาดตาราง 1 อัน (ใช้ทั้ง Preview และ Print)
         window.createTableHTML = (title, targetKey, targetData, config) => {
             const periodsCount = parseInt(window.appState.config?.periods) || 9;
-            const weekDays = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'];
+            const weekDays = ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.'];
 
             let html = `
             <div class="print-page-break bg-white border-2 border-black p-4 w-full mb-6 text-black" style="font-family: 'Prompt', sans-serif; page-break-inside: avoid; break-inside: avoid;">
@@ -2768,7 +2768,7 @@ window.saveTeacher = () => {
         // ฟังก์ชันแปลงข้อมูลตารางเป็น Array ส่งให้ Google Docs
         window.buildDocData = (exportData, config) => {
             const periodsCount = parseInt(window.appState.config?.periods) || 9;
-            const weekDays = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'];
+            const weekDays = ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.'];
             let tables = [];
 
             let targetObj = {};
