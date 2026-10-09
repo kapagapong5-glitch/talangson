@@ -2764,12 +2764,81 @@ window.saveTeacher = () => {
             container.innerHTML = `<div class="w-full max-w-3xl">${previewHTML}</div>`;
         };
 
-        // สั่งสร้างเอกสารโดยเปิดหน้าต่างใหม่ แล้วใช้ระบบ Print/Save as PDF ของเบราว์เซอร์
+        // ฟังก์ชันแปลงข้อมูลตารางเป็น Array ส่งให้ Google Docs
+        window.buildDocData = (exportData, config) => {
+            const periodsCount = parseInt(window.appState.config?.periods) || 9;
+            const weekDays = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'];
+            let tables = [];
+
+            let targetObj = {};
+            if (currentExportTab === 'teacher') targetObj = exportData.teachers;
+            else if (currentExportTab === 'student') targetObj = exportData.students;
+            else if (currentExportTab === 'room') targetObj = exportData.rooms;
+
+            Object.keys(targetObj).sort().forEach(keyName => {
+                let titleName = config.showPrefix ? keyName : window.getShortTeacherName(keyName);
+                let title = currentExportTab === 'teacher' ? `ตารางสอน: ${titleName}` :
+                            currentExportTab === 'student' ? `ตารางเรียนนักเรียนชั้น ${keyName}` :
+                            `ตารางการใช้ห้อง: ${keyName}`;
+
+                let rows = [];
+                let headerRow = ["วัน"];
+                for(let p = 1; p <= periodsCount; p++) {
+                    let timeStr = window.appState.periodTimes ? window.appState.periodTimes[p-1] : "";
+                    headerRow.push(`คาบ ${p}\n${timeStr}`);
+                }
+                rows.push(headerRow);
+
+                weekDays.forEach((day, dIdx) => {
+                    let row = [day];
+                    for(let p = 1; p <= periodsCount; p++) {
+                        let cell = targetObj[keyName][`${dIdx}_${p}`];
+                        let cellText = "";
+                        if (cell) {
+                            if (currentExportTab === 'teacher') {
+                                if (config.showSubjAbbr) cellText += cell.subjAbbr + "\n";
+                                if (config.showSubjCode && cell.subjCode) cellText += cell.subjCode + "\n";
+                                if (config.showStudentRoom) cellText += cell.sRoom + "\n";
+                                if (config.showTeachRoom && cell.pRoom) cellText += `(${cell.pRoom})`;
+                            } else if (currentExportTab === 'student') {
+                                if (config.showSubjAbbr) cellText += cell.subjAbbr + "\n";
+                                if (config.showSubjCode && cell.subjCode) cellText += cell.subjCode + "\n";
+                                if (!cell.isActivity) {
+                                    let tNameDisplay = config.showTeacherShort ? window.getShortTeacherName(cell.tName) : cell.tName;
+                                    if (tNameDisplay) cellText += tNameDisplay + "\n";
+                                }
+                                if (config.showTeachRoom && cell.pRoom && cell.pRoom !== "-" && cell.pRoom !== "ลานกิจกรรม") {
+                                    cellText += `ห้อง: ${cell.pRoom}`;
+                                }
+                            } else if (currentExportTab === 'room') {
+                                if (config.showSubjAbbr) cellText += cell.subjAbbr + "\n";
+                                if (config.showSubjCode && cell.subjCode) cellText += cell.subjCode + "\n";
+                                if (!cell.isActivity) {
+                                    let tNameDisplayRoom = window.getShortTeacherName(cell.tName);
+                                    if (config.showTeacherName) cellText += tNameDisplayRoom + "\n";
+                                }
+                                if (config.showStudentRoom) cellText += cell.sRoom;
+                            }
+                        }
+                        row.push(cellText.trim()); // ตัดช่องว่างส่วนเกิน
+                    }
+                    rows.push(row);
+                });
+                tables.push({ title: title, rows: rows });
+            });
+
+            return {
+                schoolName: config.schoolName,
+                year: config.year,
+                footer: config.footer,
+                tables: tables
+            };
+        };
+
+        // สั่งส่งข้อมูลไปสร้างตารางใน Docs ถ่ายเป็น PDF แล้วดาวน์โหลด
         window.executeDownload = () => {
             window.showLoader();
-            
             const exportData = window.buildExportData();
-            const cols = parseInt(document.getElementById('cfgColumns').value) || 1;
             
             const config = {
                 tab: currentExportTab,
@@ -2785,67 +2854,42 @@ window.saveTeacher = () => {
                 showTeacherName: document.getElementById('chkTeacherName')?.checked ?? true,
             };
 
-            let gridClass = cols === 2 ? "grid grid-cols-2 gap-4" : "flex flex-col space-y-6";
-            let printHTML = `<div class="${gridClass} w-full text-black bg-white" style="font-family: 'Prompt', sans-serif;">`;
+            const payload = window.buildDocData(exportData, config);
 
-            if (currentExportTab === 'teacher') {
-                Object.keys(exportData.teachers).sort().forEach(tName => {
-                    let titleName = config.showPrefix ? tName : window.getShortTeacherName(tName);
-                    printHTML += window.createTableHTML(`ตารางสอน: ${titleName}`, tName, exportData.teachers[tName], config);
-                });
-            } else if (currentExportTab === 'student') {
-                Object.keys(exportData.students).sort().forEach(sRoom => {
-                    printHTML += window.createTableHTML(`ตารางเรียนนักเรียนชั้น ${sRoom}`, sRoom, exportData.students[sRoom], config);
-                });
-            } else if (currentExportTab === 'room') {
-                Object.keys(exportData.rooms).sort().forEach(pRoom => {
-                    printHTML += window.createTableHTML(`ตารางการใช้ห้อง: ${pRoom}`, pRoom, exportData.rooms[pRoom], config);
-                });
+            // ⚠️ วาง URL ของ Google Apps Script ที่ Deploy แล้ว ตรงนี้
+            const GAS_URL = "https://script.google.com/macros/s/AKfycbyimXdzLC6VYD_mcru9PvEGiGNb6P1F7PMj3FRktN8ZljUeOI93fjU6Shhbfj_h0H-U/exec"; 
+
+            if(GAS_URL === "https://script.google.com/macros/s/AKfycbyimXdzLC6VYD_mcru9PvEGiGNb6P1F7PMj3FRktN8ZljUeOI93fjU6Shhbfj_h0H-U/exec") {
+                window.hideLoader();
+                showAppAlert('ข้อผิดพลาด', 'กรุณานำ URL จาก Google Apps Script มาใส่ในโค้ด JavaScript ก่อนครับ', 'error');
+                return;
             }
-            printHTML += `</div>`;
 
-            // เปิดหน้าต่างใหม่ (Blank Page)
-            const printWindow = window.open('', '_blank');
-            
-            // สร้างหน้าเว็บเปล่าๆ พร้อมใส่ CSS และตารางลงไป
-            const fullHTML = `
-            <!DOCTYPE html>
-            <html lang="th">
-            <head>
-                <meta charset="UTF-8">
-                <title>ดาวน์โหลดตารางสอน</title>
-                <!-- โหลด Tailwind และ Font -->
-                <script src="https://cdn.tailwindcss.com"><\/script>
-                <style>
-                    @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
-                    body { font-family: 'Prompt', sans-serif; background-color: white; color: black; margin: 0; padding: 0; }
-                    .print-page-break { page-break-inside: avoid; break-inside: avoid; margin-bottom: 20px; }
-                    
-                    /* ตั้งค่ากระดาษ A4 แนวตั้ง */
-                    @media print {
-                        @page { size: A4 portrait; margin: 10mm; }
-                        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    }
-                </style>
-            </head>
-            <body>
-                ${printHTML}
-                <script>
-                    // รอให้ Tailwind ทำงานเสร็จ 1 วินาที แล้วเปิดหน้าต่าง Print อัตโนมัติ
-                    setTimeout(() => {
-                        window.print();
-                    }, 1000);
-                <\/script>
-            </body>
-            </html>
-            `;
-
-            // เขียนข้อมูลลงหน้าต่างใหม่
-            printWindow.document.open();
-            printWindow.document.write(fullHTML);
-            printWindow.document.close();
-
-            window.hideLoader();
+            // สั่งยิง API แบบ text/plain เพื่อป้องกันปัญหา CORS
+            fetch(GAS_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                window.hideLoader();
+                if (data.status === 'success') {
+                    // แปลง Base64 กลับเป็นไฟล์ PDF และเด้งดาวน์โหลด
+                    const linkSource = `data:application/pdf;base64,${data.pdfBase64}`;
+                    const downloadLink = document.createElement("a");
+                    downloadLink.href = linkSource;
+                    downloadLink.download = `ตาราง_${currentExportTab}.pdf`;
+                    downloadLink.click();
+                    showAppAlert('สำเร็จ!', 'ไฟล์ PDF ถูกสร้างจาก Google Docs และดาวน์โหลดเรียบร้อยแล้ว', 'success');
+                } else {
+                    showAppAlert('ข้อผิดพลาด', 'ไม่สามารถสร้าง PDF ได้: ' + data.message, 'error');
+                }
+            })
+            .catch(err => {
+                window.hideLoader();
+                showAppAlert('ข้อผิดพลาด', 'การเชื่อมต่อกับ Google Docs ขัดข้อง', 'error');
+            });
         };
 
         // แทรกการรัน Live Preview ตอนเข้าหน้า 6
