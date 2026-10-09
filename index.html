@@ -50,6 +50,22 @@
             70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
             100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
+
+        /* --- CSS สำหรับการจัดหน้ากระดาษตอน Download เป็น PDF --- */
+        @media print {
+            body * { visibility: hidden; } /* ซ่อนทุกอย่างบนหน้าเว็บ */
+            #printArea, #printArea * { visibility: visible; } /* แสดงเฉพาะพื้นที่พิมพ์ */
+            #printArea {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            .print-page-break { page-break-inside: avoid; break-inside: avoid; margin-bottom: 20px; } /* ป้องกันตารางขาดครึ่งหน้า */
+            @page { size: A4; margin: 10mm; } /* ตั้งค่ากระดาษ A4 */
+        }
     </style>
 </head>
 <body class="text-gray-800">
@@ -362,30 +378,76 @@
                 </div>
             </div>
 
+            <!-- Step 6: Export & Preview -->
             <div id="step6" class="step-content">
-                <h2 class="text-2xl font-bold mb-4 text-gray-700 border-b pb-2"><i class="fa-solid fa-download text-blue-600 mr-2"></i>ขั้นที่ 6: ส่งออกตารางสอน</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
-                    <div class="border rounded-xl p-6 bg-gray-50 text-center hover:shadow-md transition">
-                        <i class="fa-solid fa-file-pdf text-red-500 text-5xl mb-4"></i>
-                        <h3 class="text-lg font-bold mb-2">ดาวน์โหลดเป็น PDF</h3>
-                        <label class="block text-sm text-gray-600 mb-2">จำนวนตารางต่อหน้า (A4)</label>
-                        <select class="block w-full border rounded p-2 mb-4">
-                            <option>1 ตาราง / หน้า</option>
-                            <option>2 ตาราง / หน้า</option>
-                            <option>4 ตาราง / หน้า</option>
-                        </select>
-                        <button class="w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">Export PDF</button>
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-4 border-b border-gray-200 pb-4 sticky top-16 z-40 bg-white/95 backdrop-blur-md pt-4 -mt-4 -mx-4 px-4 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)] rounded-t-xl transition-all">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                            <i class="fa-solid fa-print text-indigo-600 mr-3"></i>ขั้นที่ 6: ดูตัวอย่างและดาวน์โหลด
+                        </h2>
+                        <p class="text-sm text-gray-500 mt-1">ปรับแต่งข้อมูลที่ต้องการแสดงบนตาราง และบันทึกเป็นไฟล์ PDF (Save as PDF)</p>
                     </div>
-                    <div class="border rounded-xl p-6 bg-gray-50 text-center hover:shadow-md transition">
-                        <i class="fa-solid fa-file-excel text-green-600 text-5xl mb-4"></i>
-                        <h3 class="text-lg font-bold mb-2">ดาวน์โหลดเป็น Excel</h3>
-                        <p class="text-sm text-gray-500 mb-6 mt-4">ดาวน์โหลดข้อมูลตารางสอนทั้งหมดเป็นไฟล์ Excel แยกตามรายบุคคลหรือรายห้องเรียน</p>
-                        <button class="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Export Excel</button>
+                    <div class="flex space-x-2 bg-gray-100 p-1 rounded-lg mt-4 lg:mt-0">
+                        <button onclick="switchExportTab('teacher')" id="tabBtn-teacher" class="px-4 py-2 rounded-md font-bold text-sm bg-white shadow-sm text-indigo-700 transition">ตารางครู</button>
+                        <button onclick="switchExportTab('student')" id="tabBtn-student" class="px-4 py-2 rounded-md font-bold text-sm text-gray-600 hover:bg-gray-200 transition">ตารางนักเรียน</button>
+                        <button onclick="switchExportTab('room')" id="tabBtn-room" class="px-4 py-2 rounded-md font-bold text-sm text-gray-600 hover:bg-gray-200 transition">ตารางห้องเรียน</button>
+                    </div>
+                </div>
+
+                <div class="flex flex-col lg:flex-row gap-6">
+                    <!-- เมนูปรับแต่ง (ซ้าย) -->
+                    <div class="w-full lg:w-1/3 bg-gray-50 p-5 rounded-2xl border border-gray-200 shadow-inner h-fit">
+                        <h3 class="font-bold text-gray-800 mb-3 border-b pb-2"><i class="fa-solid fa-sliders mr-2"></i>ตั้งค่าข้อมูลในตาราง</h3>
+                        
+                        <div class="space-y-3 text-sm">
+                            <div>
+                                <label class="font-semibold text-gray-700 block mb-1">1. ข้อมูลส่วนหัวและท้าย</label>
+                                <input type="text" id="cfgSchoolName" placeholder="ชื่อโรงเรียน" class="w-full border p-2 rounded mb-2 focus:ring-indigo-500" value="โรงเรียนตัวอย่าง" onchange="renderLivePreview()">
+                                <input type="text" id="cfgYear" placeholder="ปีการศึกษา (เช่น ภาคเรียนที่ 1/2567)" class="w-full border p-2 rounded mb-2 focus:ring-indigo-500" value="ภาคเรียนที่ 1 ประจำปีการศึกษา 2567" onchange="renderLivePreview()">
+                                <input type="text" id="cfgFooter" placeholder="ข้อความท้ายตาราง (เช่น ลงชื่อ........ผู้อำนวยการ)" class="w-full border p-2 rounded focus:ring-indigo-500" onchange="renderLivePreview()">
+                            </div>
+
+                            <div class="border-t pt-3">
+                                <label class="font-semibold text-gray-700 block mb-2">2. ข้อมูลในช่องตาราง</label>
+                                <div id="cfgCheckboxes" class="space-y-2">
+                                    <!-- ตัวเลือกจะถูกสร้างอัตโนมัติตามแท็บที่เลือกด้วย JS -->
+                                </div>
+                            </div>
+
+                            <div class="border-t pt-3">
+                                <label class="font-semibold text-gray-700 block mb-2">3. การจัดหน้ากระดาษ (ดาวน์โหลด)</label>
+                                <select id="cfgColumns" class="w-full border border-gray-300 rounded p-2 focus:ring-indigo-500 font-medium">
+                                    <option value="1">1 ตาราง / แถว (ขนาดใหญ่ A4)</option>
+                                    <option value="2">2 ตาราง / แถว (ขนาดเล็ก/ครึ่ง A4)</option>
+                                </select>
+                                <p class="text-[10px] text-gray-500 mt-1">* ระบบจะคำนวณแถวและตัดหน้าให้อัตโนมัติ</p>
+                            </div>
+                        </div>
+
+                        <button onclick="executeDownload()" class="w-full mt-6 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-lg transition flex items-center justify-center text-lg">
+                            <i class="fa-solid fa-file-pdf mr-2"></i>สร้าง PDF
+                        </button>
+                    </div>
+
+                    <!-- หน้าจอ Live Preview (ขวา) -->
+                    <div class="w-full lg:w-2/3 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm overflow-x-auto min-h-[500px]">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-gray-800"><i class="fa-solid fa-eye text-blue-500 mr-2"></i>ตัวอย่างแบบร่าง (Live Preview)</h3>
+                            <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">แสดงตัวอย่างรายการแรก</span>
+                        </div>
+                        <div id="previewContainer" class="border border-dashed border-gray-300 p-4 rounded-xl flex justify-center bg-gray-50/50">
+                            <!-- ตารางพรีวิวจะแสดงตรงนี้ -->
+                        </div>
                     </div>
                 </div>
             </div>
 
+            <!-- พื้นที่ซ่อนสำหรับจับภาพพรินต์ -->
+            <div id="printArea" class="hidden text-black bg-white"></div>
+
         </div>
+
+        <!-- Modal เพิ่มครู -->
 
         <div id="teacherModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
             <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 relative">
@@ -2463,6 +2525,277 @@ window.saveTeacher = () => {
             originalUpdateUI4();
             if(window.appState && window.appState.currentStep === 5) {
                 setTimeout(() => { window.renderRoomSettings(); window.renderStep5Grid(); }, 100);
+            }
+        };
+    // --- ระบบดาวน์โหลด & Live Preview (Step 6) ---
+        
+        let currentExportTab = 'teacher';
+
+        // สกัดเฉพาะชื่อจริงครู (ตัดคำนำหน้าและนามสกุล)
+        window.getShortTeacherName = (fullName) => {
+            if(!fullName) return "";
+            let name = fullName.trim();
+            const prefixes = ['นาย', 'นางสาว', 'นาง', 'ครู', 'ว่าที่ร.ต.', 'ว่าที่ ร.ต.', 'ดร.', 'ผอ.'];
+            for(let p of prefixes) {
+                if(name.startsWith(p)) {
+                    name = name.substring(p.length).trim();
+                    break;
+                }
+            }
+            return name.split(' ')[0]; // เอาเฉพาะคำแรกก่อนเว้นวรรค
+        };
+
+        // สลับแท็บระบบดาวน์โหลด
+        window.switchExportTab = (tab) => {
+            currentExportTab = tab;
+            ['teacher', 'student', 'room'].forEach(t => {
+                const btn = document.getElementById(`tabBtn-${t}`);
+                if(t === tab) {
+                    btn.classList.replace('text-gray-600', 'text-indigo-700');
+                    btn.classList.replace('hover:bg-gray-200', 'bg-white');
+                    btn.classList.add('shadow-sm');
+                } else {
+                    btn.classList.replace('text-indigo-700', 'text-gray-600');
+                    btn.classList.replace('bg-white', 'hover:bg-gray-200');
+                    btn.classList.remove('shadow-sm');
+                }
+            });
+
+            // ปรับกล่อง Checkbox ให้ตรงกับแท็บ
+            const cbContainer = document.getElementById('cfgCheckboxes');
+            if (tab === 'teacher') {
+                cbContainer.innerHTML = `
+                    <label class="flex items-center space-x-2"><input type="checkbox" id="chkPrefix" checked onchange="renderLivePreview()" class="rounded text-indigo-600"><span>แสดงคำนำหน้าชื่อครู</span></label>
+                    <label class="flex items-center space-x-2"><input type="checkbox" id="chkSubjAbbr" checked onchange="renderLivePreview()" class="rounded text-indigo-600"><span>แสดงชื่อย่อวิชา</span></label>
+                    <label class="flex items-center space-x-2"><input type="checkbox" id="chkSubjCode" checked onchange="renderLivePreview()" class="rounded text-indigo-600"><span>แสดงรหัสวิชา</span></label>
+                    <label class="flex items-center space-x-2"><input type="checkbox" id="chkStudentRoom" checked onchange="renderLivePreview()" class="rounded text-indigo-600"><span>แสดงห้องนักเรียน</span></label>
+                    <label class="flex items-center space-x-2"><input type="checkbox" id="chkTeachRoom" checked onchange="renderLivePreview()" class="rounded text-indigo-600"><span>แสดงห้องที่ทำการสอน</span></label>
+                `;
+            } else if (tab === 'student') {
+                cbContainer.innerHTML = `
+                    <label class="flex items-center space-x-2"><input type="checkbox" id="chkSubjAbbr" checked onchange="renderLivePreview()" class="rounded text-indigo-600"><span>แสดงชื่อย่อวิชา</span></label>
+                    <label class="flex items-center space-x-2"><input type="checkbox" id="chkSubjCode" checked onchange="renderLivePreview()" class="rounded text-indigo-600"><span>แสดงรหัสวิชา</span></label>
+                    <label class="flex items-center space-x-2"><input type="checkbox" id="chkTeacherShort" checked onchange="renderLivePreview()" class="rounded text-indigo-600"><span>แสดงเฉพาะชื่อจริงครู (ตัดคำนำ/นามสกุล)</span></label>
+                    <label class="flex items-center space-x-2"><input type="checkbox" id="chkTeachRoom" checked onchange="renderLivePreview()" class="rounded text-indigo-600"><span>แสดงห้องที่เรียน</span></label>
+                `;
+            } else if (tab === 'room') {
+                cbContainer.innerHTML = `
+                    <label class="flex items-center space-x-2"><input type="checkbox" id="chkSubjAbbr" checked onchange="renderLivePreview()" class="rounded text-indigo-600"><span>แสดงชื่อย่อวิชา</span></label>
+                    <label class="flex items-center space-x-2"><input type="checkbox" id="chkSubjCode" checked onchange="renderLivePreview()" class="rounded text-indigo-600"><span>แสดงรหัสวิชา</span></label>
+                    <label class="flex items-center space-x-2"><input type="checkbox" id="chkTeacherName" checked onchange="renderLivePreview()" class="rounded text-indigo-600"><span>แสดงชื่อครูผู้สอน</span></label>
+                    <label class="flex items-center space-x-2"><input type="checkbox" id="chkStudentRoom" checked onchange="renderLivePreview()" class="rounded text-indigo-600"><span>แสดงห้องนักเรียนที่มาเรียน</span></label>
+                `;
+            }
+            renderLivePreview();
+        };
+
+        // แปลงข้อมูลเพื่อสร้างตารางนักเรียนและตารางห้องเรียน
+        window.buildExportData = () => {
+            const data = { teachers: {}, students: {}, rooms: {} };
+            const schedule = window.appState.generatedSchedule || {};
+            const assigned = window.appState.assignedRooms || {};
+            const teacherDb = window.appState.teachers || [];
+            
+            // หาข้อมูลรหัสวิชาของครู
+            const tCodeMap = {};
+            teacherDb.forEach(t => tCodeMap[t.name] = t.subjCode || "");
+
+            for (let key in schedule) {
+                let cellData = schedule[key];
+                if (cellData.type === 'subject') {
+                    let [tName, d, p] = key.split('_');
+                    let parts = cellData.label.split(' ');
+                    let subjAbbr = parts.length > 1 ? parts.slice(0, -1).join(' ') : cellData.label; 
+                    let sRoom = parts.length > 1 ? parts[parts.length - 1] : ""; // ห้องนักเรียน
+                    let subjCode = cellData.isActivity ? "" : (tCodeMap[tName] || "");
+                    let pRoom = assigned[key] || ""; // ห้องกายภาพ (สอนที่ไหน)
+
+                    let entry = { subjAbbr, subjCode, sRoom, pRoom, tName, isActivity: cellData.isActivity };
+
+                    // 1. ตารางครู
+                    if(!data.teachers[tName]) data.teachers[tName] = {};
+                    data.teachers[tName][`${d}_${p}`] = entry;
+
+                    // 2. ตารางนักเรียน
+                    if (sRoom && !cellData.isActivity) { // กิจกรรมอาจซ้อนกัน ข้ามก่อน
+                        if(!data.students[sRoom]) data.students[sRoom] = {};
+                        data.students[sRoom][`${d}_${p}`] = entry;
+                    }
+
+                    // 3. ตารางห้องเรียน (Physical Room)
+                    if (pRoom && pRoom !== "ลานกิจกรรม" && pRoom !== "สนาม" && pRoom !== "-") {
+                        if(!data.rooms[pRoom]) data.rooms[pRoom] = {};
+                        data.rooms[pRoom][`${d}_${p}`] = entry;
+                    }
+                }
+            }
+            return data;
+        };
+
+        // ฟังก์ชันวาดตาราง 1 อัน (ใช้ทั้ง Preview และ Print)
+        window.createTableHTML = (title, targetKey, targetData, config) => {
+            const periodsCount = parseInt(window.appState.config?.periods) || 9;
+            const weekDays = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'];
+
+            let html = `
+            <div class="print-page-break bg-white border-2 border-black p-4 w-full mb-6 text-black" style="font-family: 'Prompt', sans-serif;">
+                <div class="text-center mb-3">
+                    ${config.schoolName ? `<h2 class="font-bold text-lg leading-tight">${config.schoolName}</h2>` : ''}
+                    ${config.year ? `<p class="text-sm font-semibold leading-tight">${config.year}</p>` : ''}
+                    <h3 class="font-bold text-base mt-1 leading-tight">${title}</h3>
+                </div>
+                <table class="w-full text-center border-collapse border border-black text-xs">
+                    <thead>
+                        <tr><th class="border border-black p-1 w-12 bg-gray-100">วัน</th>`;
+            
+            for(let p = 1; p <= periodsCount; p++) {
+                let timeStr = window.appState.periodTimes ? window.appState.periodTimes[p-1] : "";
+                html += `<th class="border border-black p-1"><div>คาบ ${p}</div><div class="text-[9px] font-normal">${timeStr}</div></th>`;
+            }
+            html += `</tr></thead><tbody>`;
+
+            weekDays.forEach((day, dIdx) => {
+                html += `<tr><td class="border border-black p-1 font-bold bg-gray-50">${day}</td>`;
+                for(let p = 1; p <= periodsCount; p++) {
+                    let cell = targetData[`${dIdx}_${p}`];
+                    let content = "";
+                    if (cell) {
+                        // ปรับเนื้อหาตามแท็บ
+                        if (config.tab === 'teacher') {
+                            content += config.showSubjAbbr ? `<div class="font-bold text-[11px] leading-tight">${cell.subjAbbr}</div>` : '';
+                            content += (config.showSubjCode && cell.subjCode) ? `<div class="text-[9px] leading-tight">${cell.subjCode}</div>` : '';
+                            content += config.showStudentRoom ? `<div class="font-bold text-[10px] leading-tight">${cell.sRoom}</div>` : '';
+                            content += (config.showTeachRoom && cell.pRoom) ? `<div class="text-[9px] leading-tight mt-0.5">(${cell.pRoom})</div>` : '';
+                        } else if (config.tab === 'student') {
+                            content += config.showSubjAbbr ? `<div class="font-bold text-[11px] leading-tight">${cell.subjAbbr}</div>` : '';
+                            content += (config.showSubjCode && cell.subjCode) ? `<div class="text-[9px] leading-tight">${cell.subjCode}</div>` : '';
+                            
+                            let tNameDisplay = config.showTeacherShort ? window.getShortTeacherName(cell.tName) : cell.tName;
+                            content += tNameDisplay ? `<div class="text-[10px] leading-tight text-gray-700">${tNameDisplay}</div>` : '';
+                            content += (config.showTeachRoom && cell.pRoom) ? `<div class="text-[9px] leading-tight mt-0.5 font-semibold">ห้อง: ${cell.pRoom}</div>` : '';
+                        } else if (config.tab === 'room') {
+                            content += config.showSubjAbbr ? `<div class="font-bold text-[11px] leading-tight">${cell.subjAbbr}</div>` : '';
+                            content += (config.showSubjCode && cell.subjCode) ? `<div class="text-[9px] leading-tight">${cell.subjCode}</div>` : '';
+                            content += config.showTeacherName ? `<div class="text-[10px] leading-tight text-gray-700">${cell.tName}</div>` : '';
+                            content += config.showStudentRoom ? `<div class="font-bold text-[10px] leading-tight mt-0.5 bg-gray-100 rounded inline-block px-1">${cell.sRoom}</div>` : '';
+                        }
+                    }
+                    html += `<td class="border border-black p-1 h-14 align-middle">${content}</td>`;
+                }
+                html += `</tr>`;
+            });
+            html += `</tbody></table>`;
+            if(config.footer) html += `<div class="text-right text-xs mt-3 font-medium">${config.footer}</div>`;
+            html += `</div>`;
+            return html;
+        };
+
+        // วาดหน้าจอ Preview
+        window.renderLivePreview = () => {
+            const container = document.getElementById('previewContainer');
+            if(!container) return;
+
+            const exportData = window.buildExportData();
+            
+            // อ่านค่า Config
+            const config = {
+                tab: currentExportTab,
+                schoolName: document.getElementById('cfgSchoolName').value,
+                year: document.getElementById('cfgYear').value,
+                footer: document.getElementById('cfgFooter').value,
+                // Teacher flags
+                showPrefix: document.getElementById('chkPrefix')?.checked ?? true,
+                // Common flags
+                showSubjAbbr: document.getElementById('chkSubjAbbr')?.checked ?? true,
+                showSubjCode: document.getElementById('chkSubjCode')?.checked ?? true,
+                showStudentRoom: document.getElementById('chkStudentRoom')?.checked ?? true,
+                showTeachRoom: document.getElementById('chkTeachRoom')?.checked ?? true,
+                // Student/Room flags
+                showTeacherShort: document.getElementById('chkTeacherShort')?.checked ?? true,
+                showTeacherName: document.getElementById('chkTeacherName')?.checked ?? true,
+            };
+
+            let previewHTML = "";
+
+            if (currentExportTab === 'teacher') {
+                const firstTeacher = Object.keys(exportData.teachers)[0];
+                if(firstTeacher) {
+                    let titleName = config.showPrefix ? firstTeacher : window.getShortTeacherName(firstTeacher);
+                    previewHTML = window.createTableHTML(`ตารางสอน: ${titleName}`, firstTeacher, exportData.teachers[firstTeacher], config);
+                } else { previewHTML = "<div class='text-gray-400'>ไม่มีข้อมูลครู</div>"; }
+            } else if (currentExportTab === 'student') {
+                const firstRoom = Object.keys(exportData.students).sort()[0];
+                if(firstRoom) {
+                    previewHTML = window.createTableHTML(`ตารางเรียนนักเรียนชั้น ${firstRoom}`, firstRoom, exportData.students[firstRoom], config);
+                } else { previewHTML = "<div class='text-gray-400'>ไม่มีข้อมูลห้องเรียน (จัดรูปแบบเดินเรียนเท่านั้น หรือยังไม่ระบุห้อง)</div>"; }
+            } else if (currentExportTab === 'room') {
+                const firstRoom = Object.keys(exportData.rooms).sort()[0];
+                if(firstRoom) {
+                    previewHTML = window.createTableHTML(`ตารางการใช้ห้อง: ${firstRoom}`, firstRoom, exportData.rooms[firstRoom], config);
+                } else { previewHTML = "<div class='text-gray-400'>ไม่มีข้อมูลห้องสอนที่ถูกระบุไว้</div>"; }
+            }
+
+            container.innerHTML = `<div class="w-full max-w-3xl">${previewHTML}</div>`;
+        };
+
+        // สั่งสร้างเอกสารและพิมพ์
+        window.executeDownload = () => {
+            const printArea = document.getElementById('printArea');
+            printArea.innerHTML = "";
+            
+            const exportData = window.buildExportData();
+            const cols = parseInt(document.getElementById('cfgColumns').value) || 1;
+            
+            const config = {
+                tab: currentExportTab,
+                schoolName: document.getElementById('cfgSchoolName').value,
+                year: document.getElementById('cfgYear').value,
+                footer: document.getElementById('cfgFooter').value,
+                showPrefix: document.getElementById('chkPrefix')?.checked ?? true,
+                showSubjAbbr: document.getElementById('chkSubjAbbr')?.checked ?? true,
+                showSubjCode: document.getElementById('chkSubjCode')?.checked ?? true,
+                showStudentRoom: document.getElementById('chkStudentRoom')?.checked ?? true,
+                showTeachRoom: document.getElementById('chkTeachRoom')?.checked ?? true,
+                showTeacherShort: document.getElementById('chkTeacherShort')?.checked ?? true,
+                showTeacherName: document.getElementById('chkTeacherName')?.checked ?? true,
+            };
+
+            let gridClass = cols === 2 ? "grid grid-cols-2 gap-4" : "flex flex-col space-y-4";
+            let printHTML = `<div class="${gridClass}">`;
+
+            if (currentExportTab === 'teacher') {
+                Object.keys(exportData.teachers).sort().forEach(tName => {
+                    let titleName = config.showPrefix ? tName : window.getShortTeacherName(tName);
+                    printHTML += window.createTableHTML(`ตารางสอน: ${titleName}`, tName, exportData.teachers[tName], config);
+                });
+            } else if (currentExportTab === 'student') {
+                Object.keys(exportData.students).sort().forEach(sRoom => {
+                    printHTML += window.createTableHTML(`ตารางเรียนนักเรียนชั้น ${sRoom}`, sRoom, exportData.students[sRoom], config);
+                });
+            } else if (currentExportTab === 'room') {
+                Object.keys(exportData.rooms).sort().forEach(pRoom => {
+                    printHTML += window.createTableHTML(`ตารางการใช้ห้อง: ${pRoom}`, pRoom, exportData.rooms[pRoom], config);
+                });
+            }
+            
+            printHTML += `</div>`;
+            printArea.innerHTML = printHTML;
+
+            // หน่วงเวลาเล็กน้อยให้ CSS ทำงาน แล้วสั่ง Print
+            setTimeout(() => {
+                window.print();
+            }, 300);
+        };
+
+        // แทรกการรัน Live Preview ตอนเข้าหน้า 6
+        const originalUpdateUI6 = window.updateUI || function(){};
+        window.updateUI = function() {
+            originalUpdateUI6();
+            if(window.appState && window.appState.currentStep === 6) {
+                setTimeout(() => { 
+                    if(document.getElementById('cfgCheckboxes').innerHTML.trim() === "") switchExportTab('teacher');
+                    else renderLivePreview(); 
+                }, 100);
             }
         };
         
