@@ -54,9 +54,10 @@
 </head>
 <body class="text-gray-800">
 
-    <div id="pageLoader" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-[100] hidden flex-col items-center justify-center transition-opacity duration-300">
+    <!-- Loading Screen (หน้าจอโหลด) -->
+    <div id="pageLoader" class="fixed inset-0 bg-white/90 backdrop-blur-sm z-[100] hidden flex-col items-center justify-center transition-opacity duration-300">
         <div class="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4 shadow-lg"></div>
-        <p class="text-indigo-800 font-bold text-lg animate-pulse">กำลังเตรียมข้อมูลตาราง...</p>
+        <h2 class="text-indigo-800 font-extrabold text-2xl animate-pulse tracking-wide">กำลังโหลด...</h2>
     </div>
 
     <!-- Navbar -->
@@ -728,8 +729,17 @@
 let currentStep = 1;
 const totalSteps = 6;
 
-window.showLoader = () => document.getElementById('pageLoader').classList.remove('hidden');
-window.hideLoader = () => document.getElementById('pageLoader').classList.add('hidden');
+window.showLoader = () => {
+    const loader = document.getElementById('pageLoader');
+    loader.classList.remove('hidden');
+    loader.classList.add('flex'); // เปิดใช้งานระบบกึ่งกลาง
+};
+
+window.hideLoader = () => {
+    const loader = document.getElementById('pageLoader');
+    loader.classList.remove('flex'); // ปิดระบบกึ่งกลาง
+    loader.classList.add('hidden');
+};
 
 function updateUI() {
     document.querySelectorAll('.step-content').forEach((el, index) => {
