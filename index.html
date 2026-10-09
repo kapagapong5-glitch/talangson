@@ -553,10 +553,16 @@
                 <p class="text-xs text-gray-500 mb-4">กำหนดกิจกรรมที่จัดพร้อมกันหลายคน เช่น เข้าแถวหน้าเสาธง, แนะแนวรวม, โฮมรูม</p>
                 
                 <div class="space-y-4 overflow-y-auto pr-1 flex-grow">
-                    <div>
+                    <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อกิจกรรม / คาบเรียน</label>
-                        <input type="text" id="batchActivityName" placeholder="เช่น กิจกรรมหน้าเสาธง, โฮมรูม, สวดมนต์" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50">
+                        <input type="text" id="batchActivityName" class="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-indigo-500 focus:border-indigo-500" placeholder="เช่น กิจกรรมหน้าเสาธง, โฮมรูม, สวดมนต์">
                     </div>
+                    <!-- เริ่มส่วนที่เพิ่มใหม่: ช่องสถานที่เรียน -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">สถานที่ (เว้นว่างได้)</label>
+                        <input type="text" id="batchActivityRoom" class="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-indigo-500 focus:border-indigo-500" placeholder="เช่น ลานกิจกรรม, หอประชุม, โดม">
+                    </div>
+                    <!-- จบส่วนที่เพิ่มใหม่ -->
 
                     <div>
                         <div class="flex justify-between items-center mb-1.5">
@@ -1883,6 +1889,7 @@ window.saveTeacher = () => {
         // ฟังก์ชันสั่งลงตาราง
         window.applyBatchActivity = () => {
             const actName = document.getElementById('batchActivityName').value.trim();
+            const actRoom = document.getElementById('batchActivityRoom').value.trim(); // เพิ่มบรรทัดนี้
             if (!actName) {
                 showAppAlert('กรุณาระบุข้อมูล', 'กรุณากรอกชื่อกิจกรรม / คาบเรียน', 'warning');
                 return;
@@ -1924,7 +1931,8 @@ window.saveTeacher = () => {
                         window.appState.fixedSchedule[key] = {
                             type: 'subject',
                             label: actName,
-                            isActivity: true
+                            isActivity: true,
+                            room: actRoom
                         };
                         countAssigned++;
                     });
@@ -2325,8 +2333,8 @@ window.saveTeacher = () => {
                 let data = window.appState.generatedSchedule[key];
                 if(data.type === 'subject') {
                     if(data.isActivity) {
-                        // ปล่อยเป็นค่าว่างแทน ลานกิจกรรม เพื่อให้ไม่ต้องแสดงถ้าไม่จำเป็น
-                        window.appState.assignedRooms[key] = ""; 
+                        // ดึงสถานที่จากที่เรากรอกไว้ในขั้นที่ 3 มาใส่เลย ถ้าระบุไว้ก็แสดง ถ้าไม่ระบุก็เป็นค่าว่าง
+                        window.appState.assignedRooms[key] = data.room || ""; 
                         continue;
                     }
                     
