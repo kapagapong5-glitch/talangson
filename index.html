@@ -1122,57 +1122,80 @@ function goToStep(step) {
     }, 300);
 }
 
-// ฟังก์ชันคำนวณคาบสอนรวมแบบ Real-time
-        // ฟังก์ชันคำนวณคาบสอนรวมแบบ Real-time
-        // ฟังก์ชันคำนวณคาบสอนรวมแบบ Real-time
+
+        // ฟังก์ชันคำนวณคาบสอนรวมแบบ Real-time (อัปเกรดตรรกะใหม่)
         window.calculateTotalPeriods = function() {
-            // 1. คำนวณจำนวนคาบทั้งหมด (จำนวนห้อง * (คาบต่อวัน - 1 คาบพักเที่ยง) * 5 วัน)
+            // 1. คำนวณจำนวนห้องทั้งหมด และคาบทั้งหมดที่เด็กต้องเรียน
             let totalPeriodsRequired = 0;
+            let totalRooms = 0;
             const periodsPerDay = parseInt(document.getElementById('periodsPerDay').value) || 0;
+            const weeklyPeriods = (periodsPerDay - 1) * 5; // ลบพักเที่ยง
             
             if (window.appState && window.appState.gradeLevels) {
                 window.appState.gradeLevels.forEach(grade => {
-                    const rooms = parseInt(grade.rooms) || 0;
-                    const weeklyPeriods = (periodsPerDay - 1) * 5; // ลบพักเที่ยง 1 คาบต่อวัน คูน 5 วัน
-                    totalPeriodsRequired += (rooms * weeklyPeriods);
+                    const r = parseInt(grade.rooms) || 0;
+                    totalRooms += r;
+                    totalPeriodsRequired += (r * weeklyPeriods);
+                });
+            }
+
+            // 2. คำนวณจำนวนคาบวิชาปกติ (ยุบรวม Co-teaching แล้วนับตามห้อง)
+            let uniqueClasses = {};
+            if (window.appState && window.appState.teachers) {
+                window.appState.teachers.forEach(t => {
+                    const credit = parseFloat(t.credit) || 0;
+                    const periods = credit * 2; // แปลงหน่วยกิตเป็นคาบ
+                    const rooms = t.rooms ? t.rooms.split(',').map(r => r.trim()).filter(r => r !== "") : [];
+                    const subjCode = t.subjCode || 'NO_CODE';
+                    const subjName = t.subjName || 'NO_NAME';
+                    
+                    rooms.forEach(room => {
+                        // ใช้ รหัสวิชา + ชื่อวิชา + ห้อง เป็นตัวคัดกรองการสอนร่วม (Co-teaching)
+                        const groupKey = `${subjCode}_${subjName}_${room}`;
+                        // ถ้ายังไม่เคยนับวิชานี้ในห้องนี้ ให้นับเพิ่มเข้าไป
+                        if (!uniqueClasses[groupKey]) {
+                            uniqueClasses[groupKey] = periods;
+                        }
+                    });
                 });
             }
             
-            // 2. คำนวณจำนวนคาบที่มีผู้สอนแล้ว (จากวิชาปกติ)
             let totalAssignedPeriods = 0;
-            if (window.appState && window.appState.teachers) {
-                window.appState.teachers.forEach(teacher => {
-                    const credit = parseFloat(teacher.credit) || 0;
-                    // นับจำนวนห้องที่ครูคนนี้สอนจากคอมม่า (,)
-                    const roomsCount = teacher.rooms ? teacher.rooms.split(',').filter(r => r.trim() !== "").length : 0;
-                    // หน่วยกิต * 2 * จำนวนห้อง
-                    totalAssignedPeriods += (credit * 2) * roomsCount;
-                });
+            for (let key in uniqueClasses) {
+                totalAssignedPeriods += uniqueClasses[key];
             }
 
-            // 🌟 เพิ่มใหม่: นับคาบกิจกรรม (isActivity) ที่ถูกสร้างในขั้นที่ 3 มารวมด้วย
+            // 3. คำนวณคาบกิจกรรม (ยุบรวมครูหลายคนเป็น 1 กิจกรรม)
+            let uniqueActivities = {};
             if (window.appState && window.appState.fixedSchedule) {
                 for (let key in window.appState.fixedSchedule) {
                     let data = window.appState.fixedSchedule[key];
-                    // ถ้าเป็นคาบกิจกรรม ให้นับเพิ่มเข้าไปเป็นคาบที่ถูกใช้งานแล้ว
                     if (data && data.isActivity) {
-                        totalAssignedPeriods++;
+                        let parts = key.split('_'); // รูปแบบ key คือ: Teacher_Day_Period
+                        // รวมกลุ่มด้วย วัน + คาบ + ชื่อกิจกรรม
+                        let actKey = `${parts[1]}_${parts[2]}_${data.label}`;
+                        uniqueActivities[actKey] = true;
                     }
                 }
             }
+            
+            // กิจกรรม 1 คาบ (เช่น เข้าแถว) ถือว่ากินเวลาของนักเรียน "ทุกห้อง" พร้อมกัน
+            let activityPeriods = Object.keys(uniqueActivities).length * totalRooms;
+            totalAssignedPeriods += activityPeriods;
 
-            // 3. คำนวณจำนวนคาบที่เหลือ (ข้อ 1 - ข้อ 2)
+            // 4. คำนวณยอดคงเหลือ
             let remainingPeriods = totalPeriodsRequired - totalAssignedPeriods;
-            if (remainingPeriods < 0) remainingPeriods = 0; // ป้องกันตัวเลขติดลบ กรณีจัดกิจกรรมเกินคาบรวม
+            if (remainingPeriods < 0) remainingPeriods = 0; // กันติดลบกรณีมีวิชาเกิน
 
-            // นำไปแสดงผลในกล่อง 3 กล่อง (Step 2)
+            // อัปเดตตัวเลขขึ้นหน้าจอ UI
             if(document.getElementById('statTotal')) document.getElementById('statTotal').innerText = totalPeriodsRequired;
             if(document.getElementById('statAssigned')) document.getElementById('statAssigned').innerText = totalAssignedPeriods;
             
             const statRemaining = document.getElementById('statRemaining');
             if(statRemaining) {
                 statRemaining.innerText = remainingPeriods;
-                // เปลี่ยนสีกล่องที่ 3 เมื่อจัดครบแล้ว (เหลือ 0)
+                
+                // เปลี่ยนสีกล่องตามสถานะ
                 if (remainingPeriods === 0) {
                     statRemaining.classList.replace('text-orange-800', 'text-green-600');
                     statRemaining.parentElement.classList.replace('bg-orange-50', 'bg-green-100');
@@ -1184,7 +1207,6 @@ function goToStep(step) {
                 }
             }
             
-            // แสดงผลที่มุมขวาบนของ Navbar ด้วย (ในกรอบสีแดงของคุณ)
             const navDisplay = document.getElementById('remainingPeriodsDisplay');
             if(navDisplay) navDisplay.innerText = remainingPeriods;
         };
