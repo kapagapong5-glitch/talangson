@@ -864,7 +864,11 @@
             periodTimes: [],
             gradeLevels: [],
             teachers: [],
-            totalPeriodsRequired: 0
+            totalPeriodsRequired: 0,
+            generatedSchedule: {},
+            fixedSchedule: {},
+            assignedRooms: {},
+            roomMappingConfig: { classRooms: {}, teacherRooms: {} }
         };
 
         // เก็บ Session การล็อกอิน
@@ -878,13 +882,65 @@
 
         const totalSteps = 8; // อัปเดตจำนวนขั้นรวม
 
+        // ฟังก์ชันดึงข้อมูลจากหน้าจอเก็บลง State ก่อนบันทึก
+        window.gatherData = function() {
+            const periodsInput = document.getElementById('periodsPerDay');
+            if (periodsInput) window.appState.config.periods = periodsInput.value;
+            
+            window.appState.periodTimes = [];
+            document.querySelectorAll('.period-time-input').forEach(input => {
+                window.appState.periodTimes.push(input.value);
+            });
+
+            window.appState.gradeLevels = [];
+            document.querySelectorAll('.grade-row').forEach(row => {
+                const inputs = row.querySelectorAll('input');
+                window.appState.gradeLevels.push({
+                    name: inputs[0].value,
+                    rooms: parseInt(inputs[1].value) || 0,
+                    lunchPeriod: parseInt(inputs[2].value) || 0
+                });
+            });
+            
+            if(window.calculateTotalPeriods) window.calculateTotalPeriods();
+        };
+
         // ฟังก์ชัน Save เข้าฐานข้อมูล (แยก Path ตามโรงเรียน)
         window.saveToFirebase = function() {
             if(!window.userSession || !window.userSession.isLoggedIn || !window.userSession.school) return Promise.resolve();
             return set(ref(db, `${window.userSession.school}/scheduleData`), window.appState)
                 .then(() => {
-                    document.getElementById('saveStatus').innerHTML = '<i class="fa-solid fa-check text-green-300"></i> บันทึกแล้ว';
+                    const statusEl = document.getElementById('saveStatus');
+                    if(statusEl) statusEl.innerHTML = '<i class="fa-solid fa-check text-green-300"></i> บันทึกแล้ว';
+                })
+                .catch((error) => {
+                    console.error("Error saving:", error);
+                    const statusEl = document.getElementById('saveStatus');
+                    if(statusEl) statusEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-300"></i> บันทึกไม่สำเร็จ';
                 });
+        };
+
+        let saveTimeout;
+        window.autoSave = function() {
+            if(!window.userSession.isLoggedIn) return; // บล็อกถ้ายังไม่ล็อกอิน
+            clearTimeout(saveTimeout);
+            const statusEl = document.getElementById('saveStatus');
+            if(statusEl) statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
+            
+            saveTimeout = setTimeout(() => {
+                if (window.gatherData) window.gatherData(); 
+                window.saveToFirebase();
+            }, 1000);
+        };
+
+        window.manualSave = function() {
+            if(!window.userSession.isLoggedIn) return;
+            const statusEl = document.getElementById('saveStatus');
+            if(statusEl) statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
+            if (window.gatherData) window.gatherData();
+            window.saveToFirebase().then(() => {
+                showAppAlert('บันทึกสำเร็จ', 'บันทึกข้อมูลลงฐานข้อมูลเรียบร้อยแล้ว!', 'success');
+            });
         };
 
         // ฟังก์ชันดึงข้อมูลเมื่อโหลด (ถูกเรียกหลังจากล็อกอินผ่าน)
@@ -908,6 +964,10 @@
                         roomMappingConfig: { classRooms: {}, teacherRooms: {} }
                     };
                     if (window.initDefaultUI) window.initDefaultUI();
+                    
+                    // สั่งบันทึกโครงสร้างเริ่มต้นไปที่ Firebase ทันที เพื่อให้เกิดฐานข้อมูลใหม่
+                    window.gatherData();
+                    window.saveToFirebase();
                 }
                 
                 // กำหนดหน้าเริ่มต้นตามสิทธิ์
@@ -927,8 +987,12 @@
                 
                 window.hideLoader();
                 updateUI(); // สั่งวาดหน้าจอหลังจากดึงข้อมูลเสร็จแล้วเท่านั้น
+            }).catch((err) => {
+                console.error("Firebase load error:", err);
+                window.hideLoader();
             });
         };
+        
     </script>
         
 <script>
