@@ -1041,8 +1041,19 @@ function updateUI() {
     
     const btnPrev = document.getElementById('btnPrev');
     const btnNext = document.getElementById('btnNext');
+    const btnSave = document.getElementById('btnSave');
+
     if (btnPrev) btnPrev.style.display = currentStep > 1 ? 'block' : 'none';
     if (btnNext) btnNext.style.display = currentStep < totalSteps ? 'block' : 'none';
+    
+    // ซ่อนปุ่ม Save ในขั้นที่ 7 (แลกคาบ) และสำหรับสิทธิ์ครูทั่วไป
+    if (btnSave) {
+        if (currentStep === 7 || (window.userSession && window.userSession.role === 'user')) {
+            btnSave.classList.add('hidden');
+        } else {
+            btnSave.classList.remove('hidden');
+        }
+    }
     
     if (window.appState) window.appState.currentStep = currentStep;
 
