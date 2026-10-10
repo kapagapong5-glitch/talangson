@@ -2690,7 +2690,7 @@ window.saveTeacher = () => {
                             content += config.showSubjAbbr ? `<div class="font-bold text-[11px] leading-tight">${cell.subjAbbr}</div>` : '';
                             content += (config.showSubjCode && cell.subjCode) ? `<div class="text-[9px] leading-tight">${cell.subjCode}</div>` : '';
                             content += config.showStudentRoom ? `<div class="font-bold text-[10px] leading-tight">${cell.sRoom}</div>` : '';
-                            content += (config.showTeachRoom && cell.pRoom) ? `<div class="text-[9px] leading-tight mt-0.5">(${cell.pRoom})</div>` : '';
+                            content += (config.showTeachRoom && cell.pRoom && cell.pRoom !== "-") ? `<div class="text-[9px] leading-tight mt-0.5">(${cell.pRoom})</div>` : '';
                         } else if (config.tab === 'student') {
                             content += config.showSubjAbbr ? `<div class="font-bold text-[11px] leading-tight">${cell.subjAbbr}</div>` : '';
                             content += (config.showSubjCode && cell.subjCode) ? `<div class="text-[9px] leading-tight">${cell.subjCode}</div>` : '';
@@ -2703,7 +2703,7 @@ window.saveTeacher = () => {
                             
                             // แสดงห้องเฉพาะที่มีค่าและไม่ใช่ค่าว่าง
                             if (config.showTeachRoom && cell.pRoom && cell.pRoom !== "-" && cell.pRoom !== "ลานกิจกรรม") {
-                                content += `<div class="text-[9px] leading-tight mt-0.5 font-semibold">ห้อง: ${cell.pRoom}</div>`;
+                                content += `<div class="text-[9px] leading-tight mt-0.5 font-semibold">${cell.pRoom}</div>`;
                             }
                         } else if (config.tab === 'room') {
                             content += config.showSubjAbbr ? `<div class="font-bold text-[11px] leading-tight">${cell.subjAbbr}</div>` : '';
@@ -2810,7 +2810,7 @@ window.saveTeacher = () => {
                                 if (config.showSubjAbbr) cellText += cell.subjAbbr + "\n";
                                 if (config.showSubjCode && cell.subjCode) cellText += cell.subjCode + "\n";
                                 if (config.showStudentRoom) cellText += cell.sRoom + "\n";
-                                if (config.showTeachRoom && cell.pRoom) cellText += `(${cell.pRoom})`;
+                                if (config.showTeachRoom && cell.pRoom && cell.pRoom !== "-") cellText += `(${cell.pRoom})`;
                             } else if (currentExportTab === 'student') {
                                 if (config.showSubjAbbr) cellText += cell.subjAbbr + "\n";
                                 if (config.showSubjCode && cell.subjCode) cellText += cell.subjCode + "\n";
@@ -2819,7 +2819,7 @@ window.saveTeacher = () => {
                                     if (tNameDisplay) cellText += tNameDisplay + "\n";
                                 }
                                 if (config.showTeachRoom && cell.pRoom && cell.pRoom !== "-" && cell.pRoom !== "ลานกิจกรรม") {
-                                    cellText += `ห้อง: ${cell.pRoom}`;
+                                    cellText += `${cell.pRoom}`;
                                 }
                             } else if (currentExportTab === 'room') {
                                 if (config.showSubjAbbr) cellText += cell.subjAbbr + "\n";
