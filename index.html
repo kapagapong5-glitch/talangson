@@ -880,7 +880,7 @@
 
         // ฟังก์ชัน Save เข้าฐานข้อมูล (แยก Path ตามโรงเรียน)
         window.saveToFirebase = function() {
-            if(!window.userSession.school) return Promise.resolve();
+            if(!window.userSession || !window.userSession.isLoggedIn || !window.userSession.school) return Promise.resolve();
             return set(ref(db, `${window.userSession.school}/scheduleData`), window.appState)
                 .then(() => {
                     document.getElementById('saveStatus').innerHTML = '<i class="fa-solid fa-check text-green-300"></i> บันทึกแล้ว';
@@ -893,22 +893,40 @@
             get(ref(db, `${window.userSession.school}/scheduleData`)).then((snapshot) => {
                 if (snapshot.exists()) {
                     window.appState = snapshot.val();
-                    if (window.userSession.role === 'user') {
-                        window.appState.currentStep = 7; // ครูทั่วไปบังคับเปิดหน้า 7
-                    } else {
-                        currentStep = window.appState.currentStep || 1;
-                    }
-                    if (window.appState.config && window.appState.config.periods) {
-                        document.getElementById('periodsPerDay').value = window.appState.config.periods;
-                    }
-                    if (window.restoreUIFromState) window.restoreUIFromState();
-                    updateUI();
                 } else {
+                    // หากเป็นโรงเรียนใหม่ที่ยังไม่มีข้อมูล ให้สร้างโครงสร้างพื้นฐานกันพัง
+                    window.appState = {
+                        currentStep: 1,
+                        config: { periods: 9 },
+                        periodTimes: [],
+                        gradeLevels: [],
+                        teachers: [],
+                        totalPeriodsRequired: 0,
+                        generatedSchedule: {},
+                        fixedSchedule: {},
+                        assignedRooms: {},
+                        roomMappingConfig: { classRooms: {}, teacherRooms: {} }
+                    };
                     if (window.initDefaultUI) window.initDefaultUI();
-                    if (window.userSession.role === 'user') currentStep = 7;
-                    updateUI();
                 }
+                
+                // กำหนดหน้าเริ่มต้นตามสิทธิ์
+                if (window.userSession.role === 'user') {
+                    currentStep = 7;
+                    window.appState.currentStep = 7;
+                } else {
+                    currentStep = window.appState.currentStep || 1;
+                }
+
+                if (window.appState.config && window.appState.config.periods) {
+                    let pInput = document.getElementById('periodsPerDay');
+                    if(pInput) pInput.value = window.appState.config.periods;
+                }
+
+                if (window.restoreUIFromState) window.restoreUIFromState();
+                
                 window.hideLoader();
+                updateUI(); // สั่งวาดหน้าจอหลังจากดึงข้อมูลเสร็จแล้วเท่านั้น
             });
         };
     </script>
@@ -930,15 +948,20 @@ window.hideLoader = () => {
 };
 
 function updateUI() {
+    // ป้องกันครูทั่วไปกดแอบเข้าหน้าอื่นผ่าน JS
+    if (window.userSession && window.userSession.role === 'user' && currentStep !== 7) {
+        currentStep = 7;
+    }
+
     document.querySelectorAll('.step-content').forEach((el, index) => {
         if (index + 1 === currentStep) el.classList.add('active');
         else el.classList.remove('active');
     });
-
+    
     let progress = ((currentStep - 1) / (totalSteps - 1)) * 100;
     const progressLine = document.getElementById('progressLine');
     if (progressLine) progressLine.style.width = `${progress}%`;
-
+    
     for (let i = 1; i <= totalSteps; i++) {
         let indicator = document.getElementById(`indicator-${i}`);
         if (indicator) {
@@ -951,27 +974,36 @@ function updateUI() {
             }
         }
     }
-
+    
     const btnPrev = document.getElementById('btnPrev');
     const btnNext = document.getElementById('btnNext');
     if (btnPrev) btnPrev.style.display = currentStep > 1 ? 'block' : 'none';
     if (btnNext) btnNext.style.display = currentStep < totalSteps ? 'block' : 'none';
-
+    
     if (window.appState) window.appState.currentStep = currentStep;
 
-    if (currentStep === 2) {
-        if (window.renderTeachers) window.renderTeachers();
-        if (window.calculateTotalPeriods) window.calculateTotalPeriods();
-    } else if (currentStep === 3 && window.renderStep3Grid) {
-        window.renderStep3Grid();
-    } else if (currentStep === 4 && window.appState?.generatedSchedule && Object.keys(window.appState.generatedSchedule).length > 0) {
-        if (window.renderStep4Grid) window.renderStep4Grid();
-    } else if (currentStep === 5) {
-        if (window.renderRoomSettings) window.renderRoomSettings();
-        if (window.appState?.generatedSchedule && Object.keys(window.appState.generatedSchedule).length > 0 && window.renderStep5Grid) {
-            window.renderStep5Grid();
+    // หน่วงเวลาเล็กน้อยให้ HTML แสดงผลก่อน แล้วค่อยวาดตาราง เพื่อป้องกันบั๊กหน้าขาว
+    setTimeout(() => {
+        if (currentStep === 2) {
+            if (window.renderTeachers) window.renderTeachers();
+            if (window.calculateTotalPeriods) window.calculateTotalPeriods();
+        } else if (currentStep === 3 && window.renderStep3Grid) {
+            window.renderStep3Grid();
+        } else if (currentStep === 4 && window.appState?.generatedSchedule && Object.keys(window.appState.generatedSchedule).length > 0) {
+            if (window.renderStep4Grid) window.renderStep4Grid();
+        } else if (currentStep === 5) {
+            if (window.renderRoomSettings) window.renderRoomSettings();
+            if (window.appState?.generatedSchedule && Object.keys(window.appState.generatedSchedule).length > 0 && window.renderStep5Grid) {
+                window.renderStep5Grid();
+            }
+        } else if (currentStep === 6) {
+            if (window.switchExportTab) window.switchExportTab(typeof currentExportTab !== 'undefined' ? currentExportTab : 'teacher');
+        } else if (currentStep === 7) {
+            if (window.initStep7) window.initStep7();
+        } else if (currentStep === 8) {
+            if (window.loadUsersFromSheet) window.loadUsersFromSheet();
         }
-    }
+    }, 100);
 }
 window.updateUI = updateUI;
 
@@ -1989,21 +2021,6 @@ window.saveTeacher = () => {
             }
         };
 
-        // ผูกฟังก์ชัน Render กับการเปลี่ยนหน้า
-        const originalUpdateUI3 = window.updateUI || function(){};
-        window.updateUI = function() {
-            originalUpdateUI3();
-            if(window.appState && window.appState.currentStep === 4) {
-                setTimeout(() => { window.renderStep4Grid(); }, 100);
-            }
-        };
-
-        // เริ่มต้นการแสดงผลเมื่อเปิดหน้าเว็บ
-        window.onload = () => {
-            updateUI();
-        };
-
-        
 
         // --- ระบบกำหนดคาบบังคับ / คาบว่าง (Step 3) ---
         // --- ระบบกำหนดคาบกิจกรรม / คาบส่วนกลาง (Batch Activity) ---
@@ -2713,14 +2730,7 @@ window.saveTeacher = () => {
             }
         };
 
-        // ผูกฟังก์ชัน Render ขั้นที่ 5 กับการเปลี่ยนหน้า UI
-        const originalUpdateUI4 = window.updateUI || function(){};
-        window.updateUI = function() {
-            originalUpdateUI4();
-            if(window.appState && window.appState.currentStep === 5) {
-                setTimeout(() => { window.renderRoomSettings(); window.renderStep5Grid(); }, 100);
-            }
-        };
+
     // --- ระบบดาวน์โหลด & Live Preview (Step 6) ---
         
         let currentExportTab = 'teacher';
@@ -3087,27 +3097,7 @@ window.saveTeacher = () => {
             });
         };
     
-        // แทรกการรัน Live Preview ตอนเข้าหน้า 6
-        const originalUpdateUI6 = window.updateUI || function(){};
-        window.updateUI = function() {
-            originalUpdateUI6();
-            if(window.appState && window.appState.currentStep === 6) {
-                setTimeout(() => { 
-                    // สั่งสลับแท็บเพื่อสร้าง Checkbox ขึ้นมาแสดงให้เลือกทันที (แก้บั๊กหายตอนแรก)
-                    switchExportTab(currentExportTab); 
-                }, 100);
-            }
-        };
-    // ผูกฟังก์ชัน Render ขั้นที่ 7 กับการเปลี่ยนหน้า UI
-        const originalUpdateUI7 = window.updateUI || function(){};
-        window.updateUI = function() {
-            originalUpdateUI7();
-            if(window.appState && window.appState.currentStep === 7) {
-                setTimeout(() => { 
-                    window.initStep7(); 
-                }, 100);
-            }
-        };
+
 
     // ==========================================
         // ระบบแลกคาบสอน-สอนแทน (Step 7) แบบดูข้อมูลเท่านั้น (View Only)
@@ -3521,17 +3511,7 @@ window.saveTeacher = () => {
             });
         };
 
-        const originalUpdateUI8 = window.updateUI || function(){};
-        window.updateUI = function() {
-            // ป้องกันครูทั่วไปกดแอบเข้าหน้าอื่น
-            if (window.userSession && window.userSession.role === 'user' && currentStep !== 7) {
-                currentStep = 7;
-            }
-            originalUpdateUI8();
-            if(window.appState && window.appState.currentStep === 8) {
-                setTimeout(() => { window.loadUsersFromSheet(); }, 100);
-            }
-        };
+
         
     </script>
 </body>
