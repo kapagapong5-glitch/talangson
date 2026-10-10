@@ -1657,14 +1657,28 @@ window.saveTeacher = () => {
                             cellClass += ' bg-gray-100/80';
                         } else if (cellData.type === 'subject') {
                             let parts = cellData.label.split(' ');
-                            let subj = parts.slice(0, -1).join(' '); 
-                            let room = parts[parts.length - 1]; 
+                            let subj = parts.length > 1 ? parts.slice(0, -1).join(' ') : cellData.label; 
+                            let room = parts.length > 1 ? parts[parts.length - 1] : ""; 
                             
+                            // ดึงรหัสวิชา (หาจากข้อมูลครูใน state หรือจากข้อมูลที่ถูก AI จัดไว้ให้)
+                            let subjCode = cellData.subjCode || "";
+                            if (!subjCode && !cellData.isActivity) {
+                                let tObj = window.appState.teachers.find(t => t.name === teacherName);
+                                if (tObj && tObj.subjCode) subjCode = tObj.subjCode;
+                            }
+
+                            // กำหนดสีเพื่อแยกวิชาปกติและกิจกรรม (ถ้ามีหลงมา)
+                            let cardColor = cellData.isActivity ? "bg-purple-50 border-purple-200 hover:border-purple-400" : "bg-indigo-50 border-indigo-200 hover:border-indigo-400";
+                            let txtColor = cellData.isActivity ? "text-purple-700" : "text-indigo-700";
+                            let subColor = cellData.isActivity ? "text-purple-500" : "text-indigo-500";
+                            
+                            // วาดกล่องโดยเพิ่ม รหัสวิชา (subjCode) แทรกตรงกลาง
                             cellContent = `
-                                <div class="w-full h-full p-1 cursor-move" draggable="true" ondragstart="handleDragStart(event, '${key}')">
-                                    <div class="bg-indigo-50 border border-indigo-200 hover:border-indigo-400 hover:shadow-md rounded-md h-full flex flex-col items-center justify-center transition">
-                                        <span class="font-bold text-indigo-700 leading-tight">${subj}</span>
-                                        <span class="text-xs text-indigo-500 font-medium mt-0.5">${room}</span>
+                                <div class="w-full h-full p-0.5 cursor-move" draggable="true" ondragstart="handleDragStart(event, '${key}')">
+                                    <div class="${cardColor} hover:shadow-md rounded-md h-full w-full flex flex-col items-center justify-center transition py-1 px-0.5">
+                                        <span class="font-extrabold ${txtColor} text-[11px] leading-none mb-0.5">${subj}</span>
+                                        ${subjCode ? `<span class="text-[9px] text-gray-500 font-bold leading-none mb-0.5">${subjCode}</span>` : ''}
+                                        <span class="text-[10px] ${subColor} font-bold opacity-80 leading-none">${room}</span>
                                     </div>
                                 </div>`;
                         }
