@@ -110,6 +110,14 @@
                     <div class="bg-blue-800 px-4 py-1 rounded-full text-sm font-semibold border border-blue-600">
                         คาบสอนคงเหลือ: <span id="remainingPeriodsDisplay" class="text-yellow-300 text-lg">0</span>
                     </div>
+                    <!-- ส่วนแสดงผู้ใช้และปุ่มออกจากระบบ -->
+                    <div id="userProfileNav" class="hidden flex items-center space-x-3 border-l border-blue-500 pl-4 ml-2">
+                        <span id="navDisplayName" class="text-sm font-medium text-white hidden sm:block"></span>
+                        <button onclick="executeLogout()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm flex items-center">
+                            <i class="fa-solid fa-right-from-bracket sm:mr-1"></i>
+                            <span class="hidden sm:inline">ออกจากระบบ</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -118,42 +126,46 @@
     <!-- Main Container -->
     <div class="max-w-7xl mx-auto px-4 py-8">
         <!-- Progress Stepper -->
-        <div class="mb-8 bg-white p-4 rounded-xl shadow-sm overflow-x-auto">
-            <div class="flex items-center justify-between relative min-w-[700px]">
-                <div class="absolute left-0 top-1/2 transform -translate-y-1/2 w-full h-1 bg-gray-200 z-0"></div>
-                <div class="absolute left-0 top-1/2 transform -translate-y-1/2 h-1 bg-blue-600 z-0 transition-all duration-300" id="progressLine" style="width: 0%;"></div>
+        <div class="mb-8 bg-white pt-6 pb-8 px-6 rounded-xl shadow-sm overflow-x-auto">
+            <div class="relative min-w-[800px] px-4">
+                <!-- แถบเส้นพื้นหลังและเส้นวิ่ง (ปรับให้อยู่กึ่งกลางวงกลมเป๊ะๆ และไม่ล้นขอบ) -->
+                <div class="absolute top-[18px] left-[36px] right-[36px] h-1.5 bg-gray-100 z-0 rounded-full">
+                    <div class="h-full bg-blue-600 rounded-full transition-all duration-500" id="progressLine" style="width: 0%;"></div>
+                </div>
                 
-                <div class="step-indicator z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(1)">
-                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-blue-600 text-white ring-4 ring-white shadow-sm" id="indicator-1">1</div>
-                    <span class="text-xs mt-2 font-medium">ข้อมูลพื้นฐาน</span>
-                </div>
-                <div class="step-indicator z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(2)">
-                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white shadow-sm" id="indicator-2">2</div>
-                    <span class="text-xs mt-2 font-medium">จัดการครูผู้สอน</span>
-                </div>
-                <div class="step-indicator z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(3)">
-                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white shadow-sm" id="indicator-3">3</div>
-                    <span class="text-xs mt-2 font-medium">กำหนดคาบบังคับ</span>
-                </div>
-                <div class="step-indicator z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(4)">
-                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white shadow-sm" id="indicator-4">4</div>
-                    <span class="text-xs mt-2 font-medium">จัดตารางสอน</span>
-                </div>
-                <div class="step-indicator z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(5)">
-                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white shadow-sm" id="indicator-5">5</div>
-                    <span class="text-xs mt-2 font-medium text-indigo-700">กำหนดห้องสอน</span>
-                </div>
-                <div class="step-indicator z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(6)">
-                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white shadow-sm" id="indicator-6">6</div>
-                    <span class="text-xs mt-2 font-medium">ดาวน์โหลด</span>
-                </div>
-                <div class="step-indicator z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(7)" id="navStep7">
-                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white shadow-sm" id="indicator-7">7</div>
-                    <span class="text-xs mt-2 font-medium text-purple-700">แลกคาบสอน</span>
-                </div>
-                <div class="step-indicator z-10 flex flex-col items-center cursor-pointer hidden" onclick="goToStep(8)" id="navStep8">
-                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white shadow-sm" id="indicator-8">8</div>
-                    <span class="text-xs mt-2 font-medium text-orange-600">จัดการผู้ใช้</span>
+                <div class="flex justify-between relative z-10">
+                    <div class="step-indicator flex flex-col items-center cursor-pointer w-10 relative group" onclick="goToStep(1)">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-blue-600 text-white ring-4 ring-white shadow-sm transition-transform group-hover:scale-110" id="indicator-1">1</div>
+                        <span class="text-[11px] mt-2 font-bold text-gray-700 whitespace-nowrap absolute top-10">ข้อมูลพื้นฐาน</span>
+                    </div>
+                    <div class="step-indicator flex flex-col items-center cursor-pointer w-10 relative group" onclick="goToStep(2)">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white shadow-sm transition-transform group-hover:scale-110" id="indicator-2">2</div>
+                        <span class="text-[11px] mt-2 font-bold text-gray-700 whitespace-nowrap absolute top-10">จัดการครูผู้สอน</span>
+                    </div>
+                    <div class="step-indicator flex flex-col items-center cursor-pointer w-10 relative group" onclick="goToStep(3)">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white shadow-sm transition-transform group-hover:scale-110" id="indicator-3">3</div>
+                        <span class="text-[11px] mt-2 font-bold text-gray-700 whitespace-nowrap absolute top-10">กำหนดคาบบังคับ</span>
+                    </div>
+                    <div class="step-indicator flex flex-col items-center cursor-pointer w-10 relative group" onclick="goToStep(4)">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white shadow-sm transition-transform group-hover:scale-110" id="indicator-4">4</div>
+                        <span class="text-[11px] mt-2 font-bold text-gray-700 whitespace-nowrap absolute top-10">จัดตารางสอน</span>
+                    </div>
+                    <div class="step-indicator flex flex-col items-center cursor-pointer w-10 relative group" onclick="goToStep(5)">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white shadow-sm transition-transform group-hover:scale-110" id="indicator-5">5</div>
+                        <span class="text-[11px] mt-2 font-bold text-indigo-700 whitespace-nowrap absolute top-10">กำหนดห้องสอน</span>
+                    </div>
+                    <div class="step-indicator flex flex-col items-center cursor-pointer w-10 relative group" onclick="goToStep(6)">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white shadow-sm transition-transform group-hover:scale-110" id="indicator-6">6</div>
+                        <span class="text-[11px] mt-2 font-bold text-gray-700 whitespace-nowrap absolute top-10">ดาวน์โหลด</span>
+                    </div>
+                    <div class="step-indicator flex flex-col items-center cursor-pointer w-10 relative group" onclick="goToStep(7)" id="navStep7">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white shadow-sm transition-transform group-hover:scale-110" id="indicator-7">7</div>
+                        <span class="text-[11px] mt-2 font-bold text-purple-700 whitespace-nowrap absolute top-10">แลกคาบสอน</span>
+                    </div>
+                    <div class="step-indicator flex flex-col items-center cursor-pointer w-10 relative hidden group" onclick="goToStep(8)" id="navStep8">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white shadow-sm transition-transform group-hover:scale-110" id="indicator-8">8</div>
+                        <span class="text-[11px] mt-2 font-bold text-orange-600 whitespace-nowrap absolute top-10">จัดการผู้ใช้</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -3441,7 +3453,6 @@ window.saveTeacher = () => {
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังตรวจสอบ...';
             err.innerText = "";
 
-            // อัปเกรด Fetch ให้ส่งข้อมูลเป็น Form Data ป้องกันเบราว์เซอร์บล็อกการเชื่อมต่อ
             fetch(GAS_URL, { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -3450,10 +3461,9 @@ window.saveTeacher = () => {
             .then(res => res.json())
             .then(data => {
                 if(data.success) {
-                    // ล็อกอินผ่าน เก็บ Session ของโรงเรียน
                     window.userSession = {
                         isLoggedIn: true,
-                        school: data.school, // ข้อมูลจะแยกอัตโนมัติตามโรงเรียน
+                        school: data.school,
                         username: data.username,
                         role: data.role,
                         displayName: data.displayName
@@ -3461,37 +3471,76 @@ window.saveTeacher = () => {
                     
                     document.getElementById('loginScreen').classList.add('hidden');
                     
-                    // ปรับ UI ตามสิทธิ์ (Admin / User)
-                    applyRoleRestrictions();
+                    // แสดงชื่อผู้ใช้บน Navbar
+                    const navProfile = document.getElementById('userProfileNav');
+                    const navName = document.getElementById('navDisplayName');
+                    if(navProfile) navProfile.classList.remove('hidden');
+                    if(navName) navName.innerText = data.displayName;
                     
-                    // โหลดข้อมูล Firebase ประจำโรงเรียน
+                    applyRoleRestrictions();
                     window.loadDataFromFirebase();
                 } else {
                     err.innerText = data.message;
                     btn.innerHTML = 'เข้าสู่ระบบ';
                 }
             }).catch(e => {
-                err.innerText = "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ (โปรดตรวจสอบการตั้งค่า Deploy ของ Apps Script)";
+                err.innerText = "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้";
                 btn.innerHTML = 'เข้าสู่ระบบ';
             });
         };
 
+        window.executeLogout = () => {
+            if(!confirm("ต้องการออกจากระบบใช่หรือไม่?")) return;
+            
+            // ล้าง Session
+            window.userSession = { isLoggedIn: false, school: "", username: "", role: "", displayName: "" };
+            
+            // ซ่อนปุ่มบน Navbar
+            const navProfile = document.getElementById('userProfileNav');
+            if(navProfile) navProfile.classList.add('hidden');
+            
+            // ล้างฟอร์มล็อกอินและแสดงหน้าต่างล็อกอิน
+            document.getElementById('loginUsername').value = "";
+            document.getElementById('loginPassword').value = "";
+            document.getElementById('loginScreen').classList.remove('hidden');
+            
+            // รีเซ็ตข้อมูลในหน่วยความจำ
+            window.appState = {
+                currentStep: 1, config: { periods: 9 }, periodTimes: [], gradeLevels: [], teachers: [],
+                totalPeriodsRequired: 0, generatedSchedule: {}, fixedSchedule: {}, assignedRooms: {},
+                roomMappingConfig: { classRooms: {}, teacherRooms: {} }
+            };
+        };
+
         window.applyRoleRestrictions = () => {
             if(window.userSession.role === 'user') {
-                // ถ้าเป็นครูทั่วไป ซ่อนเมนู 1-6 และ 8 ซ่อนปุ่มต่างๆ
+                // เปลี่ยนจาก hidden เป็น invisible เพื่อรักษาความกว้างของ flexbox เอาไว้ เส้นจะได้ไม่เพี้ยน
                 for(let i=1; i<=6; i++) {
                     const ind = document.querySelector(`.step-indicator[onclick="goToStep(${i})"]`);
-                    if(ind) ind.classList.add('hidden');
+                    if(ind) {
+                        ind.classList.remove('hidden');
+                        ind.classList.add('invisible', 'pointer-events-none');
+                    }
                 }
+                const nav8 = document.getElementById('navStep8');
+                if(nav8) {
+                    nav8.classList.remove('hidden');
+                    nav8.classList.add('invisible', 'pointer-events-none');
+                }
+                
                 document.getElementById('btnSave').classList.add('hidden');
                 document.getElementById('btnNext').classList.add('hidden');
                 document.getElementById('btnPrev').classList.add('hidden');
             } else {
-                // ถ้าเป็น Admin ให้แสดงเมนู 8 จัดการผู้ใช้
-                document.getElementById('navStep8').classList.remove('hidden');
+                // หากเป็น Admin ให้แสดงทุกเมนู
+                for(let i=1; i<=6; i++) {
+                    const ind = document.querySelector(`.step-indicator[onclick="goToStep(${i})"]`);
+                    if(ind) ind.classList.remove('invisible', 'pointer-events-none', 'hidden');
+                }
+                const nav8 = document.getElementById('navStep8');
+                if(nav8) nav8.classList.remove('hidden', 'invisible', 'pointer-events-none');
             }
         };
-
         // --- ฟังก์ชันสำหรับ Step 8 (ดึง แก้ไข ลบ ผู้ใช้) ---
         window.loadUsersFromSheet = () => {
             document.getElementById('userTableBody').innerHTML = '<tr><td colspan="5" class="py-10 text-gray-400"><i class="fa-solid fa-spinner fa-spin"></i> กำลังดึงข้อมูลผู้ใช้...</td></tr>';
