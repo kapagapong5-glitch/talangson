@@ -2333,8 +2333,8 @@ window.saveTeacher = () => {
                 let data = window.appState.generatedSchedule[key];
                 if(data.type === 'subject') {
                     if(data.isActivity) {
-                        // ดึงสถานที่จากที่เรากรอกไว้ในขั้นที่ 3 มาใส่เลย ถ้าระบุไว้ก็แสดง ถ้าไม่ระบุก็เป็นค่าว่าง
-                        window.appState.assignedRooms[key] = data.room || ""; 
+                        // ดึงสถานที่จากที่เรากรอกไว้ในขั้นที่ 3 มาใส่เลย ถ้าระบุไว้ก็แสดง ถ้าไม่ระบุก็เป็น "-" เพื่อไม่ให้ขึ้นในตารางสอน
+                        window.appState.assignedRooms[key] = data.room || "-"; 
                         continue;
                     }
                     
@@ -2450,7 +2450,9 @@ window.saveTeacher = () => {
                                 let txtColor = cellData.isActivity ? "text-purple-800" : "text-indigo-800";
 
                                 let roomBadge = pRoom 
-                                    ? `<div class="bg-white border border-orange-300 rounded px-1.5 py-0.5 text-[10px] font-extrabold text-orange-600 cursor-pointer hover:bg-orange-50 hover:border-orange-500 w-11/12 text-center truncate transition shadow-sm" onclick="openRoomPrompt('${key}', '${pRoom}')" title="คลิกเพื่อแก้ไขห้อง">${pRoom}</div>`
+                                    ? (pRoom === "-" 
+                                        ? `<div class="bg-white/80 border border-dashed border-gray-400 rounded px-1.5 py-0.5 text-[10px] font-bold text-gray-400 cursor-pointer hover:border-indigo-500 hover:text-indigo-600 hover:bg-white w-11/12 text-center truncate transition" onclick="openRoomPrompt('${key}', '-')" title="คลิกเพื่อกำหนดห้อง">ไม่ระบุ</div>`
+                                        : `<div class="bg-white border border-orange-300 rounded px-1.5 py-0.5 text-[10px] font-extrabold text-orange-600 cursor-pointer hover:bg-orange-50 hover:border-orange-500 w-11/12 text-center truncate transition shadow-sm" onclick="openRoomPrompt('${key}', '${pRoom}')" title="คลิกเพื่อแก้ไขห้อง">${pRoom}</div>`)
                                     : `<div class="bg-white/80 border border-dashed border-gray-400 rounded px-1.5 py-0.5 text-[10px] font-bold text-gray-400 cursor-pointer hover:border-indigo-500 hover:text-indigo-600 hover:bg-white w-11/12 text-center truncate transition" onclick="openRoomPrompt('${key}', '')" title="คลิกเพื่อกำหนดห้อง">+ ระบุห้อง</div>`;
 
                                 cellContent = `
