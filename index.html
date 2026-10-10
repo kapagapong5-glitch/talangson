@@ -597,7 +597,13 @@
                     <input type="hidden" id="uRow">
                     <input type="hidden" id="uSchool">
                     <div class="space-y-3 text-sm">
-                        <div><label class="block text-gray-700 mb-1">Username (เช่น wny-01)</label><input type="text" id="uName" class="w-full border rounded p-2 focus:ring-orange-500"></div>
+                        <div>
+                            <label class="block text-gray-700 mb-1">Username (ชื่อผู้ใช้)</label>
+                            <div class="flex shadow-sm">
+                                <span id="uNamePrefix" class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-100 text-gray-600 font-bold sm:text-sm"></span>
+                                <input type="text" id="uNameSuffix" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border border-gray-300 focus:ring-orange-500 focus:border-orange-500 sm:text-sm" placeholder="เช่น 01 หรือ admin2">
+                            </div>
+                        </div>
                         <div><label class="block text-gray-700 mb-1">รหัสผ่าน</label><input type="text" id="uPass" class="w-full border rounded p-2 focus:ring-orange-500" value="1234"></div>
                         <div><label class="block text-gray-700 mb-1">ชื่อที่แสดง (เช่น ครูสมชาย)</label><input type="text" id="uDisplay" class="w-full border rounded p-2 focus:ring-orange-500"></div>
                         <div>
@@ -3623,9 +3629,17 @@ window.saveTeacher = () => {
         };
 
         window.openUserModal = () => {
+            // ถ้าเป็น admin0 (ALL) ให้กรอกอักษรย่อก่อน แต่ถ้าเป็นแอดมินโรงเรียนให้ดึงมาเลย
+            let sc = window.userSession.school === 'ALL' ? prompt("ระบุอักษรย่อโรงเรียน (เช่น wny):") : window.userSession.school;
+            if(!sc) return; // ถ้ายกเลิก prompt ให้หยุดการทำงาน
+            
             document.getElementById('uRow').value = "";
-            document.getElementById('uSchool').value = window.userSession.school === 'ALL' ? prompt("ระบุอักษรย่อโรงเรียน (เช่น wny):") : window.userSession.school;
-            document.getElementById('uName').value = "";
+            document.getElementById('uSchool').value = sc;
+            
+            // ตั้งค่า Prefix อัตโนมัติ และเคลียร์ช่อง Suffix
+            document.getElementById('uNamePrefix').innerText = sc + "-";
+            document.getElementById('uNameSuffix').value = "";
+            
             document.getElementById('uPass').value = "1234";
             document.getElementById('uDisplay').value = "";
             document.getElementById('uRole').value = "user";
@@ -3636,7 +3650,12 @@ window.saveTeacher = () => {
         window.editUser = (row, school, user, pass, display, role) => {
             document.getElementById('uRow').value = row;
             document.getElementById('uSchool').value = school;
-            document.getElementById('uName').value = user;
+            
+            // ตัดคำนำหน้า (Prefix) ออกเวลาแสดงผลในช่องแก้ไข
+            document.getElementById('uNamePrefix').innerText = school + "-";
+            let suffix = user.startsWith(school + "-") ? user.substring(school.length + 1) : user;
+            document.getElementById('uNameSuffix').value = suffix;
+            
             document.getElementById('uPass').value = pass;
             document.getElementById('uDisplay').value = display;
             document.getElementById('uRole').value = role;
@@ -3647,12 +3666,16 @@ window.saveTeacher = () => {
         window.saveUserToSheet = () => {
             const row = document.getElementById('uRow').value;
             const school = document.getElementById('uSchool').value;
-            const user = document.getElementById('uName').value;
-            const pass = document.getElementById('uPass').value;
-            const display = document.getElementById('uDisplay').value;
+            
+            // นำ Prefix และ Suffix มาต่อกันก่อนบันทึก
+            const suffix = document.getElementById('uNameSuffix').value.trim();
+            const user = school + "-" + suffix;
+            
+            const pass = document.getElementById('uPass').value.trim();
+            const display = document.getElementById('uDisplay').value.trim();
             const role = document.getElementById('uRole').value;
             
-            if(!user || !pass || !display) return showAppAlert('แจ้งเตือน', 'กรุณากรอกข้อมูลให้ครบถ้วน', 'warning');
+            if(!suffix || !pass || !display) return showAppAlert('แจ้งเตือน', 'กรุณากรอกข้อมูลให้ครบถ้วน', 'warning');
             
             const mode = row ? "edit" : "add";
             document.getElementById('userModal').classList.add('hidden');
@@ -3672,7 +3695,6 @@ window.saveTeacher = () => {
                 if(data.success) { showAppAlert('สำเร็จ', data.message, 'success'); loadUsersFromSheet(); }
             });
         };
-
         window.deleteUser = (row, username) => {
             showAppConfirm(`ต้องการลบผู้ใช้ ${username} ใช่หรือไม่?`, () => {
                 window.showLoader();
