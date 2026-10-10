@@ -70,6 +70,26 @@
 </head>
 <body class="text-gray-800">
 
+    <!-- Login Screen -->
+    <div id="loginScreen" class="fixed inset-0 bg-gray-900 z-[200] flex items-center justify-center">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md text-center">
+            <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">เข้าสู่ระบบ</h2>
+            <p class="text-gray-500 text-sm mb-6">Smart Timetable & แลกคาบสอน</p>
+            
+            <div class="space-y-4">
+                <input type="text" id="loginUsername" placeholder="ชื่อผู้ใช้ (เช่น wny-admin1)" class="w-full border border-gray-300 rounded-xl p-3 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 text-center">
+                <input type="password" id="loginPassword" placeholder="รหัสผ่าน" class="w-full border border-gray-300 rounded-xl p-3 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 text-center" onkeypress="if(event.key === 'Enter') executeLogin()">
+                <button onclick="executeLogin()" id="btnLogin" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition shadow-md">
+                    เข้าสู่ระบบ
+                </button>
+                <p id="loginError" class="text-red-500 text-sm h-5"></p>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading Screen (หน้าจอโหลด) -->
     <div id="pageLoader" class="fixed inset-0 bg-white/90 backdrop-blur-sm z-[100] hidden flex-col items-center justify-center transition-opacity duration-300">
         <div class="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4 shadow-lg"></div>
@@ -127,9 +147,13 @@
                     <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white shadow-sm" id="indicator-6">6</div>
                     <span class="text-xs mt-2 font-medium">ดาวน์โหลด</span>
                 </div>
-                <div class="step-indicator z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(7)">
+                <div class="step-indicator z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(7)" id="navStep7">
                     <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white shadow-sm" id="indicator-7">7</div>
                     <span class="text-xs mt-2 font-medium text-purple-700">แลกคาบสอน</span>
+                </div>
+                <div class="step-indicator z-10 flex flex-col items-center cursor-pointer hidden" onclick="goToStep(8)" id="navStep8">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white shadow-sm" id="indicator-8">8</div>
+                    <span class="text-xs mt-2 font-medium text-orange-600">จัดการผู้ใช้</span>
                 </div>
             </div>
         </div>
@@ -528,6 +552,58 @@
                 </div>
             </div>
 
+            <!-- Step 8: จัดการผู้ใช้ (เฉพาะ Admin) -->
+            <div id="step8" class="step-content">
+                <div class="flex justify-between items-center mb-6 border-b pb-4">
+                    <h2 class="text-2xl font-bold text-gray-800"><i class="fa-solid fa-users-gear text-orange-600 mr-2"></i>ขั้นที่ 8: จัดการผู้ใช้</h2>
+                    <button onclick="openUserModal()" class="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 shadow-sm font-bold text-sm">
+                        <i class="fa-solid fa-user-plus mr-1"></i> เพิ่มผู้ใช้ใหม่
+                    </button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 border rounded-lg text-sm text-center">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 font-medium text-gray-500 uppercase">โรงเรียน</th>
+                                <th class="px-4 py-3 font-medium text-gray-500 uppercase">Username</th>
+                                <th class="px-4 py-3 font-medium text-gray-500 uppercase">ชื่อแสดงผล</th>
+                                <th class="px-4 py-3 font-medium text-gray-500 uppercase">สิทธิ์ (Role)</th>
+                                <th class="px-4 py-3 font-medium text-gray-500 uppercase">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userTableBody" class="bg-white divide-y divide-gray-200">
+                            <!-- ดึงข้อมูลจาก Google Sheet -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Modal จัดการผู้ใช้ -->
+            <div id="userModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+                <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 relative">
+                    <h3 class="text-lg font-bold mb-4 text-gray-800" id="userModalTitle">เพิ่มผู้ใช้</h3>
+                    <input type="hidden" id="uRow">
+                    <input type="hidden" id="uSchool">
+                    <div class="space-y-3 text-sm">
+                        <div><label class="block text-gray-700 mb-1">Username (เช่น wny-01)</label><input type="text" id="uName" class="w-full border rounded p-2 focus:ring-orange-500"></div>
+                        <div><label class="block text-gray-700 mb-1">รหัสผ่าน</label><input type="text" id="uPass" class="w-full border rounded p-2 focus:ring-orange-500" value="1234"></div>
+                        <div><label class="block text-gray-700 mb-1">ชื่อที่แสดง (เช่น ครูสมชาย)</label><input type="text" id="uDisplay" class="w-full border rounded p-2 focus:ring-orange-500"></div>
+                        <div>
+                            <label class="block text-gray-700 mb-1">ประเภทสิทธิ์</label>
+                            <select id="uRole" class="w-full border rounded p-2">
+                                <option value="user">User (ครูทั่วไป - เข้าได้แค่หน้า 7)</option>
+                                <option value="admin">Admin (วิชาการ - เข้าได้ทุกหน้า)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-5 flex justify-end space-x-2">
+                        <button onclick="document.getElementById('userModal').classList.add('hidden')" class="px-4 py-2 bg-gray-200 rounded-lg">ยกเลิก</button>
+                        <button onclick="saveUserToSheet()" class="px-4 py-2 bg-orange-600 text-white rounded-lg font-bold">บันทึก</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- พื้นที่ซ่อนสำหรับจับภาพพรินต์ -->
             <div id="printArea" class="hidden text-black bg-white"></div>
 
@@ -792,93 +868,50 @@
             totalPeriodsRequired: 0
         };
 
-        // ฟังก์ชันดึงข้อมูลจากหน้าจอเก็บลง State ก่อนบันทึก
-        window.gatherData = function() {
-            // ดึงจำนวนคาบ
-            window.appState.config.periods = document.getElementById('periodsPerDay').value;
-            
-            // ดึงเวลาแต่ละคาบ
-            window.appState.periodTimes = [];
-            document.querySelectorAll('.period-time-input').forEach(input => {
-                window.appState.periodTimes.push(input.value);
-            });
-
-            // ดึงข้อมูลระดับชั้น
-            window.appState.gradeLevels = [];
-            document.querySelectorAll('.grade-row').forEach(row => {
-                const inputs = row.querySelectorAll('input');
-                window.appState.gradeLevels.push({
-                    name: inputs[0].value,
-                    rooms: parseInt(inputs[1].value) || 0,
-                    lunchPeriod: parseInt(inputs[2].value) || 0
-                });
-            });
-            
-            // สั่งให้คำนวณคาบใหม่ทันทีเมื่อมีการเปลี่ยนแปลงข้อมูลโครงสร้าง
-            if(window.calculateTotalPeriods) window.calculateTotalPeriods();
+        // เก็บ Session การล็อกอิน
+        window.userSession = {
+            isLoggedIn: false,
+            school: "",
+            username: "",
+            role: "",
+            displayName: ""
         };
 
-        // ฟังก์ชัน Save เข้าฐานข้อมูล
+        const totalSteps = 8; // อัปเดตจำนวนขั้นรวม
+
+        // ฟังก์ชัน Save เข้าฐานข้อมูล (แยก Path ตามโรงเรียน)
         window.saveToFirebase = function() {
-            return set(ref(db, 'scheduleData'), window.appState)
+            if(!window.userSession.school) return Promise.resolve();
+            return set(ref(db, `${window.userSession.school}/scheduleData`), window.appState)
                 .then(() => {
                     document.getElementById('saveStatus').innerHTML = '<i class="fa-solid fa-check text-green-300"></i> บันทึกแล้ว';
-                })
-                .catch((error) => {
-                    console.error("Error saving data:", error);
-                    document.getElementById('saveStatus').innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-300"></i> บันทึกไม่สำเร็จ';
                 });
         };
 
-        // ฟังก์ชัน Auto Save (หน่วงเวลา 1 วินาที)
-        let saveTimeout;
-        window.autoSave = function() {
-            clearTimeout(saveTimeout);
-            document.getElementById('saveStatus').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
-            
-            saveTimeout = setTimeout(() => {
-                window.gatherData(); // อัปเดตข้อมูลล่าสุดจากหน้าจอก่อน
-                window.saveToFirebase();
-            }, 1000);
-        };
-
-        // ฟังก์ชัน Manual Save (บันทึกทันทีเมื่อกดปุ่ม)
-        window.manualSave = function() {
-            document.getElementById('saveStatus').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
-            window.gatherData();
-            window.saveToFirebase().then(() => {
-                alert('บันทึกข้อมูลลงฐานข้อมูลเรียบร้อยแล้ว!');
+        // ฟังก์ชันดึงข้อมูลเมื่อโหลด (ถูกเรียกหลังจากล็อกอินผ่าน)
+        window.loadDataFromFirebase = function() {
+            window.showLoader();
+            get(ref(db, `${window.userSession.school}/scheduleData`)).then((snapshot) => {
+                if (snapshot.exists()) {
+                    window.appState = snapshot.val();
+                    if (window.userSession.role === 'user') {
+                        window.appState.currentStep = 7; // ครูทั่วไปบังคับเปิดหน้า 7
+                    } else {
+                        currentStep = window.appState.currentStep || 1;
+                    }
+                    if (window.appState.config && window.appState.config.periods) {
+                        document.getElementById('periodsPerDay').value = window.appState.config.periods;
+                    }
+                    if (window.restoreUIFromState) window.restoreUIFromState();
+                    updateUI();
+                } else {
+                    if (window.initDefaultUI) window.initDefaultUI();
+                    if (window.userSession.role === 'user') currentStep = 7;
+                    updateUI();
+                }
+                window.hideLoader();
             });
         };
-
-        // ดึงข้อมูลเมื่อโหลดหน้าแรก (กู้คืนข้อมูลและสถานะขั้นตอนเดิม)
-        get(ref(db, 'scheduleData')).then((snapshot) => {
-            if (snapshot.exists()) {
-                window.appState = snapshot.val();
-                
-                // กู้คืนขั้นตอนล่าสุดที่ทำค้างไว้
-                if (window.appState.currentStep) {
-                    currentStep = parseInt(window.appState.currentStep) || 1;
-                } else {
-                    window.appState.currentStep = 1;
-                }
-
-                // กำหนดตัวเลขคาบเรียนให้ตรงกับฐานข้อมูล
-                if (window.appState.config && window.appState.config.periods) {
-                    document.getElementById('periodsPerDay').value = window.appState.config.periods;
-                }
-
-                // เรียกฟังก์ชันวาด UI ข้อมูลพื้นฐาน
-                if (window.restoreUIFromState) {
-                    window.restoreUIFromState();
-                }
-                
-                // สั่งแสดงผลหน้าจอและวาดตารางของหน้านั้นทันที
-                updateUI();
-            } else {
-                if (window.initDefaultUI) window.initDefaultUI();
-            }
-        });
     </script>
         
 <script>
@@ -3319,7 +3352,167 @@ window.saveTeacher = () => {
             renderSwapGrid('swapTargetGrid', tName, false);
         };
         
-        // ลบฟังก์ชัน executeSwapAction และ executeSubstitute ออกทั้งหมดเพราะเราไม่ได้บันทึกลงฐานข้อมูลแล้ว
+        // ==========================================
+        // ระบบ Authentication & User Management (Google Sheet)
+        // ==========================================
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbywXETJV8w69bP0ImyAn_8Le9vWYKZ2iHy01pjIIT98Yg1ZHF6vJwh758ewse8TomZw/exec";
+
+        window.executeLogin = () => {
+            const user = document.getElementById('loginUsername').value.trim();
+            const pass = document.getElementById('loginPassword').value.trim();
+            const btn = document.getElementById('btnLogin');
+            const err = document.getElementById('loginError');
+            
+            if(!user || !pass) { err.innerText = "กรุณากรอกข้อมูลให้ครบถ้วน"; return; }
+            
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังตรวจสอบ...';
+            err.innerText = "";
+
+            fetch(`${GAS_URL}?action=login&username=${user}&password=${pass}`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    // ล็อกอินผ่าน เก็บ Session
+                    window.userSession = {
+                        isLoggedIn: true,
+                        school: data.school,
+                        username: data.username,
+                        role: data.role,
+                        displayName: data.displayName
+                    };
+                    
+                    document.getElementById('loginScreen').classList.add('hidden');
+                    
+                    // ปรับ UI ตามสิทธิ์
+                    applyRoleRestrictions();
+                    
+                    // โหลดข้อมูล Firebase ประจำโรงเรียน
+                    window.loadDataFromFirebase();
+                } else {
+                    err.innerText = data.message;
+                    btn.innerHTML = 'เข้าสู่ระบบ';
+                }
+            }).catch(e => {
+                err.innerText = "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้";
+                btn.innerHTML = 'เข้าสู่ระบบ';
+            });
+        };
+
+        window.applyRoleRestrictions = () => {
+            if(window.userSession.role === 'user') {
+                // ถ้าเป็นครู ซ่อนเมนู 1-6 และ 8 ซ่อนปุ่ม Save ซ่อนปุ่มย้อนกลับ/ถัดไป
+                for(let i=1; i<=6; i++) {
+                    const ind = document.querySelector(`.step-indicator[onclick="goToStep(${i})"]`);
+                    if(ind) ind.classList.add('hidden');
+                }
+                document.getElementById('btnSave').classList.add('hidden');
+                document.getElementById('btnNext').classList.add('hidden');
+                document.getElementById('btnPrev').classList.add('hidden');
+            } else {
+                // ถ้าเป็น Admin แสดงเมนู 8
+                document.getElementById('navStep8').classList.remove('hidden');
+            }
+        };
+
+        // --- ฟังก์ชันสำหรับ Step 8 (ดึง แก้ไข ลบ ผู้ใช้) ---
+        window.loadUsersFromSheet = () => {
+            document.getElementById('userTableBody').innerHTML = '<tr><td colspan="5" class="py-10 text-gray-400"><i class="fa-solid fa-spinner fa-spin"></i> กำลังดึงข้อมูลผู้ใช้...</td></tr>';
+            fetch(`${GAS_URL}?action=getUsers&school=${window.userSession.school}`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    const tbody = document.getElementById('userTableBody');
+                    tbody.innerHTML = '';
+                    data.users.forEach(u => {
+                        let roleBadge = u.role === 'superadmin' ? '<span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">SuperAdmin</span>' :
+                                        u.role === 'admin' ? '<span class="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Admin</span>' :
+                                        '<span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">User</span>';
+                                        
+                        tbody.innerHTML += `
+                            <tr>
+                                <td class="px-4 py-2">${u.school}</td>
+                                <td class="px-4 py-2 font-bold">${u.username}</td>
+                                <td class="px-4 py-2">${u.displayName}</td>
+                                <td class="px-4 py-2">${roleBadge}</td>
+                                <td class="px-4 py-2">
+                                    <button onclick="editUser(${u.row}, '${u.school}', '${u.username}', '${u.password}', '${u.displayName}', '${u.role}')" class="text-blue-500 hover:text-blue-700 mr-3" ${u.role === 'superadmin' && window.userSession.role !== 'superadmin' ? 'disabled' : ''}><i class="fa-solid fa-edit"></i></button>
+                                    <button onclick="deleteUser(${u.row}, '${u.username}')" class="text-red-500 hover:text-red-700" ${u.role === 'superadmin' && window.userSession.role !== 'superadmin' ? 'disabled' : ''}><i class="fa-solid fa-trash"></i></button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            });
+        };
+
+        window.openUserModal = () => {
+            document.getElementById('uRow').value = "";
+            document.getElementById('uSchool').value = window.userSession.school === 'ALL' ? prompt("ระบุอักษรย่อโรงเรียน (เช่น wny):") : window.userSession.school;
+            document.getElementById('uName').value = "";
+            document.getElementById('uPass').value = "1234";
+            document.getElementById('uDisplay').value = "";
+            document.getElementById('uRole').value = "user";
+            document.getElementById('userModalTitle').innerText = "เพิ่มผู้ใช้ใหม่";
+            document.getElementById('userModal').classList.remove('hidden');
+        };
+
+        window.editUser = (row, school, user, pass, display, role) => {
+            document.getElementById('uRow').value = row;
+            document.getElementById('uSchool').value = school;
+            document.getElementById('uName').value = user;
+            document.getElementById('uPass').value = pass;
+            document.getElementById('uDisplay').value = display;
+            document.getElementById('uRole').value = role;
+            document.getElementById('userModalTitle').innerText = "แก้ไขผู้ใช้";
+            document.getElementById('userModal').classList.remove('hidden');
+        };
+
+        window.saveUserToSheet = () => {
+            const row = document.getElementById('uRow').value;
+            const school = document.getElementById('uSchool').value;
+            const user = document.getElementById('uName').value;
+            const pass = document.getElementById('uPass').value;
+            const display = document.getElementById('uDisplay').value;
+            const role = document.getElementById('uRole').value;
+            
+            if(!user || !pass || !display) return alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+            
+            const mode = row ? "edit" : "add";
+            document.getElementById('userModal').classList.add('hidden');
+            window.showLoader();
+
+            fetch(`${GAS_URL}?action=manageUser&mode=${mode}&row=${row}&school=${school}&username=${user}&password=${pass}&role=${role}&displayName=${display}`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                window.hideLoader();
+                if(data.success) { showAppAlert('สำเร็จ', data.message, 'success'); loadUsersFromSheet(); }
+            });
+        };
+
+        window.deleteUser = (row, username) => {
+            if(!confirm(`ต้องการลบผู้ใช้ ${username} ใช่หรือไม่?`)) return;
+            window.showLoader();
+            fetch(`${GAS_URL}?action=manageUser&mode=delete&row=${row}`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                window.hideLoader();
+                if(data.success) { loadUsersFromSheet(); }
+            });
+        };
+
+        // แทรกการดึงข้อมูลเมื่อเข้าหน้า 8
+        const originalUpdateUI8 = window.updateUI || function(){};
+        window.updateUI = function() {
+            originalUpdateUI8();
+            if(window.appState && window.appState.currentStep === 8) {
+                setTimeout(() => { window.loadUsersFromSheet(); }, 100);
+            }
+            // ป้องกันครูทั่วไปกดแอบเข้าหน้าอื่นผ่าน URL/JS
+            if (window.userSession && window.userSession.role === 'user' && currentStep !== 7) {
+                currentStep = 7;
+                originalUpdateUI8();
+            }
+        };
         
     </script>
 </body>
