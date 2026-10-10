@@ -1124,6 +1124,7 @@ function goToStep(step) {
 
 // ฟังก์ชันคำนวณคาบสอนรวมแบบ Real-time
         // ฟังก์ชันคำนวณคาบสอนรวมแบบ Real-time
+        // ฟังก์ชันคำนวณคาบสอนรวมแบบ Real-time
         window.calculateTotalPeriods = function() {
             // 1. คำนวณจำนวนคาบทั้งหมด (จำนวนห้อง * (คาบต่อวัน - 1 คาบพักเที่ยง) * 5 วัน)
             let totalPeriodsRequired = 0;
@@ -1136,8 +1137,8 @@ function goToStep(step) {
                     totalPeriodsRequired += (rooms * weeklyPeriods);
                 });
             }
-
-            // 2. คำนวณจำนวนคาบที่มีผู้สอนแล้ว
+            
+            // 2. คำนวณจำนวนคาบที่มีผู้สอนแล้ว (จากวิชาปกติ)
             let totalAssignedPeriods = 0;
             if (window.appState && window.appState.teachers) {
                 window.appState.teachers.forEach(teacher => {
@@ -1149,8 +1150,20 @@ function goToStep(step) {
                 });
             }
 
+            // 🌟 เพิ่มใหม่: นับคาบกิจกรรม (isActivity) ที่ถูกสร้างในขั้นที่ 3 มารวมด้วย
+            if (window.appState && window.appState.fixedSchedule) {
+                for (let key in window.appState.fixedSchedule) {
+                    let data = window.appState.fixedSchedule[key];
+                    // ถ้าเป็นคาบกิจกรรม ให้นับเพิ่มเข้าไปเป็นคาบที่ถูกใช้งานแล้ว
+                    if (data && data.isActivity) {
+                        totalAssignedPeriods++;
+                    }
+                }
+            }
+
             // 3. คำนวณจำนวนคาบที่เหลือ (ข้อ 1 - ข้อ 2)
-            const remainingPeriods = totalPeriodsRequired - totalAssignedPeriods;
+            let remainingPeriods = totalPeriodsRequired - totalAssignedPeriods;
+            if (remainingPeriods < 0) remainingPeriods = 0; // ป้องกันตัวเลขติดลบ กรณีจัดกิจกรรมเกินคาบรวม
 
             // นำไปแสดงผลในกล่อง 3 กล่อง (Step 2)
             if(document.getElementById('statTotal')) document.getElementById('statTotal').innerText = totalPeriodsRequired;
@@ -1170,8 +1183,8 @@ function goToStep(step) {
                     statRemaining.parentElement.classList.replace('border-green-300', 'border-orange-200');
                 }
             }
-
-            // แสดงผลที่มุมขวาบนของ Navbar ด้วย
+            
+            // แสดงผลที่มุมขวาบนของ Navbar ด้วย (ในกรอบสีแดงของคุณ)
             const navDisplay = document.getElementById('remainingPeriodsDisplay');
             if(navDisplay) navDisplay.innerText = remainingPeriods;
         };
