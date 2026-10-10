@@ -127,6 +127,10 @@
                     <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white shadow-sm" id="indicator-6">6</div>
                     <span class="text-xs mt-2 font-medium">ดาวน์โหลด</span>
                 </div>
+                <div class="step-indicator z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(7)">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-300 text-gray-600 ring-4 ring-white shadow-sm" id="indicator-7">7</div>
+                    <span class="text-xs mt-2 font-medium text-purple-700">แลกคาบสอน</span>
+                </div>
             </div>
         </div>
 
@@ -438,6 +442,83 @@
                         </div>
                         <div id="previewContainer" class="border border-dashed border-gray-300 p-4 rounded-xl flex justify-center bg-gray-50/50">
                             <!-- ตารางพรีวิวจะแสดงตรงนี้ -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 7: จัดสอนแทน-แลกคาบ -->
+            <div id="step7" class="step-content">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4 border-b border-gray-200 pb-4 sticky top-16 z-40 bg-white/95 backdrop-blur-md pt-4 -mt-4 -mx-4 px-4 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)] rounded-t-xl transition-all">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                            <i class="fa-solid fa-right-left text-purple-600 mr-3"></i>ขั้นที่ 7: จัดสอนแทน-แลกคาบ
+                        </h2>
+                        <p class="text-sm text-gray-500 mt-2 flex items-center">
+                            <i class="fa-solid fa-circle-info mr-2"></i> เลือกล็อกคาบของครูต้นทาง แล้วค้นหาครูเป้าหมายเพื่อสลับคาบ หรือจัดสอนแทน
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-3 bg-white p-2 rounded-xl shadow-sm border border-gray-200 w-full lg:w-auto">
+                        <label class="text-sm font-bold text-gray-700 whitespace-nowrap">1. เลือกครูต้นทาง:</label>
+                        <select id="swapSourceTeacher" class="border border-gray-300 rounded-md p-2 text-sm focus:ring-purple-500 focus:border-purple-500 bg-gray-50 min-w-[200px]" onchange="renderSwapSourceSchedule()">
+                            <option value="">-- กรุณาเลือกครู --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex flex-col xl:flex-row gap-6">
+                    <!-- ซ้าย: แผงค้นหาอัจฉริยะ -->
+                    <div class="w-full xl:w-1/3 bg-gray-50 p-5 rounded-2xl border border-gray-200 shadow-inner h-fit">
+                        <h3 class="font-bold text-gray-800 mb-3 border-b pb-2"><i class="fa-solid fa-search mr-2 text-purple-600"></i>2. แผงค้นหาครูเป้าหมาย</h3>
+                        
+                        <div id="swapSearchPlaceholder" class="text-center py-8 text-gray-500 text-sm">
+                            <i class="fa-solid fa-hand-pointer text-3xl mb-3 text-gray-300"></i>
+                            <p>กรุณาคลิกเลือก <b class="text-purple-600">"คาบสอน"</b><br>ในตารางของครูต้นทางเพื่อเริ่มค้นหา</p>
+                        </div>
+
+                        <div id="swapSearchActive" class="hidden">
+                            <div class="bg-purple-100 text-purple-800 p-3 rounded-lg mb-4 text-sm shadow-sm border border-purple-200 relative">
+                                <span class="font-bold block mb-1">กำลังหาคนแทนคาบ:</span>
+                                <span id="swapTargetInfo" class="font-medium"></span>
+                                <button onclick="resetSwapSelection()" class="absolute top-2 right-2 text-purple-400 hover:text-purple-700"><i class="fa-solid fa-times-circle text-lg"></i></button>
+                            </div>
+                            
+                            <div class="flex flex-wrap gap-2 mb-4">
+                                <button class="swap-tab-btn flex-1 bg-purple-600 text-white text-xs font-bold py-2 px-2 rounded-md transition shadow-sm" data-filter="smart" onclick="switchSwapFilter('smart')"><i class="fa-solid fa-magic mr-1"></i> คนสอนวิชานี้</button>
+                                <button class="swap-tab-btn flex-1 bg-white text-gray-600 border border-gray-300 text-xs font-bold py-2 px-2 rounded-md hover:bg-gray-100 transition" data-filter="free" onclick="switchSwapFilter('free')"><i class="fa-solid fa-clock mr-1"></i> คนว่างคาบนี้</button>
+                                <button class="swap-tab-btn flex-1 bg-white text-gray-600 border border-gray-300 text-xs font-bold py-2 px-2 rounded-md hover:bg-gray-100 transition" data-filter="name" onclick="switchSwapFilter('name')"><i class="fa-solid fa-font mr-1"></i> ค้นหาชื่อ</button>
+                            </div>
+
+                            <input type="text" id="swapNameSearchInput" class="w-full border-gray-300 rounded-md p-2 mb-3 hidden text-sm focus:ring-purple-500 focus:border-purple-500" placeholder="พิมพ์ชื่อครู..." oninput="executeSwapSearch()">
+
+                            <div class="bg-white border border-gray-200 rounded-lg max-h-60 overflow-y-auto shadow-sm">
+                                <ul id="swapTeacherList" class="divide-y divide-gray-100 text-sm">
+                                    <!-- List จะถูกสร้างจาก JS -->
+                                </ul>
+                                <div id="swapNoResult" class="hidden text-center py-6 text-gray-400 text-sm">ไม่พบครูที่เข้าเงื่อนไข</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ขวา: ตารางสอน -->
+                    <div class="w-full xl:w-2/3 space-y-6">
+                        <!-- ตารางครูต้นทาง -->
+                        <div class="bg-white rounded-2xl shadow-sm border-2 border-gray-200 overflow-hidden relative min-h-[250px]">
+                            <div class="bg-indigo-50 border-b border-indigo-100 p-3 flex justify-between items-center">
+                                <h4 class="font-bold text-indigo-900"><i class="fa-solid fa-chalkboard-user mr-2 text-indigo-500"></i>ครูต้นทาง: <span id="lblSourceTeacher">-</span></h4>
+                            </div>
+                            <div id="swapSourceGrid" class="overflow-x-auto p-3 bg-gray-50/50">
+                                <div class="text-center py-10 text-gray-400">กรุณาเลือกครูต้นทางด้านบน</div>
+                            </div>
+                        </div>
+
+                        <!-- ตารางครูเป้าหมาย -->
+                        <div id="swapTargetContainer" class="bg-white rounded-2xl shadow-sm border-2 border-purple-200 overflow-hidden hidden transition-all duration-300 relative">
+                            <div class="bg-purple-50 border-b border-purple-100 p-3 flex justify-between items-center">
+                                <h4 class="font-bold text-purple-900"><i class="fa-solid fa-user-check mr-2 text-purple-500"></i>ครูเป้าหมาย: <span id="lblTargetTeacher">-</span></h4>
+                                <button id="btnConfirmSwap" onclick="executeSwapAction()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-1.5 rounded-lg text-sm font-bold shadow-sm transition"><i class="fa-solid fa-check mr-1"></i> ยืนยันสลับคาบ/สอนแทน</button>
+                            </div>
+                            <div id="swapTargetGrid" class="overflow-x-auto p-3 bg-gray-50/50"></div>
                         </div>
                     </div>
                 </div>
@@ -798,7 +879,7 @@
         
 <script>
 let currentStep = 1;
-const totalSteps = 6;
+const totalSteps = 7;
 
 window.showLoader = () => {
     const loader = document.getElementById('pageLoader');
@@ -2980,6 +3061,276 @@ window.saveTeacher = () => {
                     switchExportTab(currentExportTab); 
                 }, 100);
             }
+        };
+    // ผูกฟังก์ชัน Render ขั้นที่ 7 กับการเปลี่ยนหน้า UI
+        const originalUpdateUI7 = window.updateUI || function(){};
+        window.updateUI = function() {
+            originalUpdateUI7();
+            if(window.appState && window.appState.currentStep === 7) {
+                setTimeout(() => { 
+                    window.initStep7(); 
+                }, 100);
+            }
+        };
+
+    // ==========================================
+        // ระบบแลกคาบสอน-สอนแทน (Step 7)
+        // ==========================================
+        let swapState = {
+            sourceTeacher: null,
+            targetTeacher: null,
+            selectedCell: null,
+            currentFilter: 'smart'
+        };
+
+        window.initStep7 = () => {
+            const select = document.getElementById('swapSourceTeacher');
+            select.innerHTML = '<option value="">-- กรุณาเลือกครู --</option>';
+            const uniqueTeachers = [...new Set((window.appState.teachers || []).map(t => t.name).filter(n => n))].sort();
+            uniqueTeachers.forEach(tName => {
+                select.innerHTML += `<option value="${tName}">${tName}</option>`;
+            });
+            resetSwapSelection();
+            document.getElementById('swapSourceGrid').innerHTML = '<div class="text-center py-10 text-gray-400">กรุณาเลือกครูต้นทางด้านบน</div>';
+        };
+
+        window.renderSwapSourceSchedule = () => {
+            swapState.sourceTeacher = document.getElementById('swapSourceTeacher').value;
+            resetSwapSelection();
+            if(!swapState.sourceTeacher) {
+                document.getElementById('swapSourceGrid').innerHTML = '<div class="text-center py-10 text-gray-400">กรุณาเลือกครูต้นทางด้านบน</div>';
+                document.getElementById('lblSourceTeacher').innerText = '-';
+                return;
+            }
+            document.getElementById('lblSourceTeacher').innerText = swapState.sourceTeacher;
+            renderSwapGrid('swapSourceGrid', swapState.sourceTeacher, true);
+        };
+
+        window.renderSwapGrid = (containerId, teacherName, isSource) => {
+            const container = document.getElementById(containerId);
+            const periodsCount = parseInt(window.appState.config?.periods) || 9;
+            const weekDays = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'];
+            
+            let html = `<table class="w-full text-sm text-center border-collapse min-w-[700px]">
+                            <thead><tr><th class="border border-gray-200 bg-white p-2 w-16 text-gray-500 font-medium">วัน</th>`;
+            for(let p=1; p<=periodsCount; p++) {
+                let tStr = window.appState.periodTimes ? window.appState.periodTimes[p-1] : "";
+                html += `<th class="border border-gray-200 bg-gray-200 text-gray-700 p-2 w-24 text-xs font-bold"><div class="mb-0.5">คาบ ${p}</div><div class="text-[9px] font-normal opacity-80">${tStr}</div></th>`;
+            }
+            html += `</tr></thead><tbody>`;
+
+            weekDays.forEach((day, dIdx) => {
+                let bg = dIdx % 2 === 0 ? "bg-white" : "bg-gray-50";
+                html += `<tr><td class="border border-gray-200 ${bg} p-2 font-bold text-gray-700">${day}</td>`;
+                for(let p=1; p<=periodsCount; p++) {
+                    const key = `${teacherName}_${dIdx}_${p}`;
+                    const data = window.appState.generatedSchedule[key];
+                    let cellClass = `border border-gray-200 h-16 transition ${bg}`;
+                    let content = '';
+                    
+                    if (data && data.type === 'subject') {
+                        let parts = data.label.split(' ');
+                        let subj = parts.length > 1 ? parts.slice(0, -1).join(' ') : data.label; 
+                        let room = parts.length > 1 ? parts[parts.length - 1] : ""; 
+                        
+                        let isSelected = (isSource && swapState.selectedCell && swapState.selectedCell.key === key);
+                        let highlightClass = isSelected ? "ring-4 ring-purple-400 bg-purple-100 border-purple-400 shadow-md transform scale-[1.02]" : "bg-indigo-50 border-indigo-200 hover:bg-indigo-100 cursor-pointer";
+                        let textColor = isSelected ? "text-purple-800" : "text-indigo-800";
+                        
+                        let clickAction = isSource ? `onclick="selectSwapCell('${key}', '${day}',${p}, '${subj}', '${room}')"` : ``;
+
+                        content = `
+                            <div class="w-full h-full p-1" ${clickAction}>
+                                <div class="${highlightClass} border rounded-md h-full flex flex-col items-center justify-center transition">
+                                    <span class="font-extrabold ${textColor} text-[11px] leading-tight">${subj}</span>
+                                    <span class="text-[10px] ${textColor} font-medium mt-0.5">${room}</span>
+                                </div>
+                            </div>`;
+                    } else if (data && data.type === 'empty') {
+                        content = `<div class="flex flex-col items-center justify-center text-gray-400 h-full w-full text-xs"><i class="fa-solid fa-ban mb-1"></i>พัก</div>`;
+                        cellClass += ' bg-gray-100/50';
+                    } else {
+                        // ช่องว่างสำหรับเป้าหมาย (เพื่อให้คลิกเอาวิชามาลงได้)
+                        if(!isSource && swapState.selectedCell && swapState.selectedCell.dIdx === dIdx && swapState.selectedCell.pIdx === p) {
+                             content = `<div class="w-full h-full p-1 cursor-pointer" onclick="executeSubstitute('${dIdx}', '${p}')">
+                                            <div class="bg-green-50 border-2 border-dashed border-green-400 hover:bg-green-100 rounded-md h-full flex flex-col items-center justify-center transition text-green-600 font-bold text-xs animate-pulse">
+                                                <i class="fa-solid fa-arrow-down mb-1"></i> แทนที่นี่
+                                            </div>
+                                        </div>`;
+                        } else {
+                             content = `<div class="text-gray-300 text-xs">ว่าง</div>`;
+                        }
+                    }
+                    html += `<td class="${cellClass}">${content}</td>`;
+                }
+                html += `</tr>`;
+            });
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        };
+
+        window.selectSwapCell = (key, dayStr, pIdx, subj, room) => {
+            let [tName, dIdx, pIdxStr] = key.split('_');
+            swapState.selectedCell = { key, dIdx: parseInt(dIdx), pIdx: parseInt(pIdxStr), dayStr, subj, room };
+            
+            // วาดตารางซ้ายใหม่เพื่อให้มีไฮไลต์คาบที่เลือก
+            renderSwapGrid('swapSourceGrid', swapState.sourceTeacher, true);
+            
+            document.getElementById('swapSearchPlaceholder').classList.add('hidden');
+            document.getElementById('swapSearchActive').classList.remove('hidden');
+            document.getElementById('swapTargetInfo').innerText = `วัน${dayStr} คาบ ${pIdxStr} (${subj} ${room})`;
+            
+            // รีเซ็ตการเลือกเป้าหมายเดิมทิ้ง (ถ้ามี)
+            document.getElementById('swapTargetContainer').classList.add('hidden');
+            swapState.targetTeacher = null;
+
+            executeSwapSearch();
+        };
+
+        window.resetSwapSelection = () => {
+            swapState.selectedCell = null;
+            swapState.targetTeacher = null;
+            document.getElementById('swapSearchPlaceholder').classList.remove('hidden');
+            document.getElementById('swapSearchActive').classList.add('hidden');
+            document.getElementById('swapTargetContainer').classList.add('hidden');
+            if(swapState.sourceTeacher) renderSwapGrid('swapSourceGrid', swapState.sourceTeacher, true);
+        };
+
+        window.switchSwapFilter = (filter) => {
+            swapState.currentFilter = filter;
+            document.querySelectorAll('.swap-tab-btn').forEach(btn => {
+                if(btn.dataset.filter === filter) {
+                    btn.className = "swap-tab-btn flex-1 bg-purple-600 text-white text-xs font-bold py-2 px-2 rounded-md transition shadow-sm";
+                } else {
+                    btn.className = "swap-tab-btn flex-1 bg-white text-gray-600 border border-gray-300 text-xs font-bold py-2 px-2 rounded-md hover:bg-gray-100 transition";
+                }
+            });
+            
+            if(filter === 'name') document.getElementById('swapNameSearchInput').classList.remove('hidden');
+            else document.getElementById('swapNameSearchInput').classList.add('hidden');
+            
+            executeSwapSearch();
+        };
+
+        window.executeSwapSearch = () => {
+            if(!swapState.selectedCell) return;
+            const uniqueTeachers = [...new Set((window.appState.teachers || []).map(t => t.name).filter(n => n))].sort();
+            let results = [];
+            
+            const {dIdx, pIdx, room} = swapState.selectedCell;
+            const searchTerm = document.getElementById('swapNameSearchInput').value.toLowerCase();
+
+            uniqueTeachers.forEach(tName => {
+                if(tName === swapState.sourceTeacher) return;
+                
+                const schedule = window.appState.generatedSchedule || {};
+                const isFreeNow = !schedule[`${tName}_${dIdx}_${pIdx}`];
+
+                if(swapState.currentFilter === 'smart') {
+                    // Smart: หาครูที่สอนห้องเดียวกันนี้ในวันอื่น และปัจจุบันคาบนี้ว่าง
+                    let teachesSameRoom = false;
+                    for(let k in schedule) {
+                        if(k.startsWith(`${tName}_`) && schedule[k].type === 'subject' && schedule[k].label.includes(room)) {
+                            teachesSameRoom = true; break;
+                        }
+                    }
+                    if(teachesSameRoom && isFreeNow) results.push({name: tName, desc: 'ว่างคาบนี้ และสอนห้องเดียวกัน'});
+                } 
+                else if (swapState.currentFilter === 'free') {
+                    if(isFreeNow) results.push({name: tName, desc: 'ตารางว่างในคาบนี้'});
+                } 
+                else if (swapState.currentFilter === 'name') {
+                    if(tName.toLowerCase().includes(searchTerm)) {
+                        results.push({name: tName, desc: isFreeNow ? 'ตารางว่างในคาบนี้' : 'มีสอนคาบนี้ (ต้องแลกสลับ)'});
+                    }
+                }
+            });
+
+            const ul = document.getElementById('swapTeacherList');
+            const noRes = document.getElementById('swapNoResult');
+            ul.innerHTML = '';
+            
+            if(results.length > 0) {
+                noRes.classList.add('hidden');
+                results.forEach(res => {
+                    ul.innerHTML += `
+                        <li class="p-3 hover:bg-purple-50 cursor-pointer flex justify-between items-center transition" onclick="selectSwapTarget('${res.name}')">
+                            <span class="font-bold text-gray-800">${res.name}</span>
+                            <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">${res.desc}</span>
+                        </li>`;
+                });
+            } else {
+                noRes.classList.remove('hidden');
+            }
+        };
+
+        window.selectSwapTarget = (tName) => {
+            swapState.targetTeacher = tName;
+            document.getElementById('lblTargetTeacher').innerText = tName;
+            document.getElementById('swapTargetContainer').classList.remove('hidden');
+            renderSwapGrid('swapTargetGrid', tName, false);
+            
+            // เช็คปุ่มว่าจะสลับหรือสอนแทน
+            const btn = document.getElementById('btnConfirmSwap');
+            const isTargetFree = !window.appState.generatedSchedule[`${tName}_${swapState.selectedCell.dIdx}_${swapState.selectedCell.pIdx}`];
+            if(isTargetFree) {
+                btn.innerHTML = `<i class="fa-solid fa-arrow-right-to-bracket mr-1"></i> โอนคาบให้ (สอนแทน)`;
+                btn.className = "bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-lg text-sm font-bold shadow-sm transition";
+            } else {
+                btn.innerHTML = `<i class="fa-solid fa-right-left mr-1"></i> ยืนยันสลับคาบ`;
+                btn.className = "bg-purple-600 hover:bg-purple-700 text-white px-4 py-1.5 rounded-lg text-sm font-bold shadow-sm transition";
+            }
+        };
+
+        // หากเป็นการสอนแทน (โอนวิชาให้คนที่ว่าง) 
+        window.executeSubstitute = (dIdx, pIdx) => {
+            // ทำงานเหมือนปุ่มยืนยันด้านบน
+            executeSwapAction();
+        };
+
+        window.executeSwapAction = () => {
+            if(!swapState.sourceTeacher || !swapState.targetTeacher || !swapState.selectedCell) return;
+            
+            let sKey = swapState.selectedCell.key;
+            let tKey = `${swapState.targetTeacher}_${swapState.selectedCell.dIdx}_${swapState.selectedCell.pIdx}`;
+            
+            let sData = window.appState.generatedSchedule[sKey];
+            let tData = window.appState.generatedSchedule[tKey];
+
+            // สลับข้อมูลตาราง
+            if(tData) {
+                window.appState.generatedSchedule[sKey] = tData;
+            } else {
+                delete window.appState.generatedSchedule[sKey];
+            }
+
+            if(sData) {
+                window.appState.generatedSchedule[tKey] = sData;
+            } else {
+                delete window.appState.generatedSchedule[tKey];
+            }
+
+            // สลับข้อมูลห้อง (ถ้ามี)
+            if(!window.appState.assignedRooms) window.appState.assignedRooms = {};
+            let sRoom = window.appState.assignedRooms[sKey];
+            let tRoom = window.appState.assignedRooms[tKey];
+            
+            if(tRoom) window.appState.assignedRooms[sKey] = tRoom;
+            else delete window.appState.assignedRooms[sKey];
+
+            if(sRoom) window.appState.assignedRooms[tKey] = sRoom;
+            else delete window.appState.assignedRooms[tKey];
+
+            window.autoSave();
+            
+            showAppAlert('สำเร็จ!', `สลับ/โอนคาบสอนเรียบร้อยแล้ว`, 'success');
+            
+            // รีเฟรชตาราง
+            renderSwapGrid('swapSourceGrid', swapState.sourceTeacher, true);
+            renderSwapGrid('swapTargetGrid', swapState.targetTeacher, false);
+            
+            // รีเซ็ตการเลือกช่อง
+            resetSwapSelection();
         };
         
     </script>
