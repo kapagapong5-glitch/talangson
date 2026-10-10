@@ -3368,14 +3368,19 @@ window.saveTeacher = () => {
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังตรวจสอบ...';
             err.innerText = "";
 
-            fetch(`${GAS_URL}?action=login&username=${user}&password=${pass}`, { method: 'POST' })
+            // อัปเกรด Fetch ให้ส่งข้อมูลเป็น Form Data ป้องกันเบราว์เซอร์บล็อกการเชื่อมต่อ
+            fetch(GAS_URL, { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ action: 'login', username: user, password: pass })
+            })
             .then(res => res.json())
             .then(data => {
                 if(data.success) {
-                    // ล็อกอินผ่าน เก็บ Session
+                    // ล็อกอินผ่าน เก็บ Session ของโรงเรียน
                     window.userSession = {
                         isLoggedIn: true,
-                        school: data.school,
+                        school: data.school, // ข้อมูลจะแยกอัตโนมัติตามโรงเรียน
                         username: data.username,
                         role: data.role,
                         displayName: data.displayName
@@ -3383,7 +3388,7 @@ window.saveTeacher = () => {
                     
                     document.getElementById('loginScreen').classList.add('hidden');
                     
-                    // ปรับ UI ตามสิทธิ์
+                    // ปรับ UI ตามสิทธิ์ (Admin / User)
                     applyRoleRestrictions();
                     
                     // โหลดข้อมูล Firebase ประจำโรงเรียน
@@ -3393,14 +3398,14 @@ window.saveTeacher = () => {
                     btn.innerHTML = 'เข้าสู่ระบบ';
                 }
             }).catch(e => {
-                err.innerText = "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้";
+                err.innerText = "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ (โปรดตรวจสอบการตั้งค่า Deploy ของ Apps Script)";
                 btn.innerHTML = 'เข้าสู่ระบบ';
             });
         };
 
         window.applyRoleRestrictions = () => {
             if(window.userSession.role === 'user') {
-                // ถ้าเป็นครู ซ่อนเมนู 1-6 และ 8 ซ่อนปุ่ม Save ซ่อนปุ่มย้อนกลับ/ถัดไป
+                // ถ้าเป็นครูทั่วไป ซ่อนเมนู 1-6 และ 8 ซ่อนปุ่มต่างๆ
                 for(let i=1; i<=6; i++) {
                     const ind = document.querySelector(`.step-indicator[onclick="goToStep(${i})"]`);
                     if(ind) ind.classList.add('hidden');
@@ -3409,7 +3414,7 @@ window.saveTeacher = () => {
                 document.getElementById('btnNext').classList.add('hidden');
                 document.getElementById('btnPrev').classList.add('hidden');
             } else {
-                // ถ้าเป็น Admin แสดงเมนู 8
+                // ถ้าเป็น Admin ให้แสดงเมนู 8 จัดการผู้ใช้
                 document.getElementById('navStep8').classList.remove('hidden');
             }
         };
@@ -3417,7 +3422,12 @@ window.saveTeacher = () => {
         // --- ฟังก์ชันสำหรับ Step 8 (ดึง แก้ไข ลบ ผู้ใช้) ---
         window.loadUsersFromSheet = () => {
             document.getElementById('userTableBody').innerHTML = '<tr><td colspan="5" class="py-10 text-gray-400"><i class="fa-solid fa-spinner fa-spin"></i> กำลังดึงข้อมูลผู้ใช้...</td></tr>';
-            fetch(`${GAS_URL}?action=getUsers&school=${window.userSession.school}`, { method: 'POST' })
+            
+            fetch(GAS_URL, { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ action: 'getUsers', school: window.userSession.school })
+            })
             .then(res => res.json())
             .then(data => {
                 if(data.success) {
@@ -3481,7 +3491,14 @@ window.saveTeacher = () => {
             document.getElementById('userModal').classList.add('hidden');
             window.showLoader();
 
-            fetch(`${GAS_URL}?action=manageUser&mode=${mode}&row=${row}&school=${school}&username=${user}&password=${pass}&role=${role}&displayName=${display}`, { method: 'POST' })
+            fetch(GAS_URL, { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    action: 'manageUser', mode: mode, row: row, school: school, 
+                    username: user, password: pass, role: role, displayName: display
+                })
+            })
             .then(res => res.json())
             .then(data => {
                 window.hideLoader();
@@ -3492,7 +3509,12 @@ window.saveTeacher = () => {
         window.deleteUser = (row, username) => {
             if(!confirm(`ต้องการลบผู้ใช้ ${username} ใช่หรือไม่?`)) return;
             window.showLoader();
-            fetch(`${GAS_URL}?action=manageUser&mode=delete&row=${row}`, { method: 'POST' })
+            
+            fetch(GAS_URL, { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ action: 'manageUser', mode: 'delete', row: row })
+            })
             .then(res => res.json())
             .then(data => {
                 window.hideLoader();
@@ -3500,17 +3522,15 @@ window.saveTeacher = () => {
             });
         };
 
-        // แทรกการดึงข้อมูลเมื่อเข้าหน้า 8
         const originalUpdateUI8 = window.updateUI || function(){};
         window.updateUI = function() {
+            // ป้องกันครูทั่วไปกดแอบเข้าหน้าอื่น
+            if (window.userSession && window.userSession.role === 'user' && currentStep !== 7) {
+                currentStep = 7;
+            }
             originalUpdateUI8();
             if(window.appState && window.appState.currentStep === 8) {
                 setTimeout(() => { window.loadUsersFromSheet(); }, 100);
-            }
-            // ป้องกันครูทั่วไปกดแอบเข้าหน้าอื่นผ่าน URL/JS
-            if (window.userSession && window.userSession.role === 'user' && currentStep !== 7) {
-                currentStep = 7;
-                originalUpdateUI8();
             }
         };
         
