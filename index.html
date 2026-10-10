@@ -1446,343 +1446,330 @@ window.saveTeacher = () => {
 
         
         window.generateAutoSchedule = () => {
+            // 1. เรียกหน้าจอโหลด (Loading Screen) ขึ้นมาแสดงทันทีที่กดปุ่ม
             window.showLoader();
+
+            // 2. ใช้ setTimeout หน่วงเวลาเล็กน้อย เพื่อให้เบราว์เซอร์แสดงหน้าจอโหลดให้เสร็จก่อนเริ่มประมวลผลหนัก
             setTimeout(() => {
                 const conflictGrp = document.getElementById('conflictActionGroup');
                 if(conflictGrp) conflictGrp.classList.add('hidden');
                 if (!window.appState.lockedTeachers) window.appState.lockedTeachers = {};
                 if (!window.appState.generatedSchedule) window.appState.generatedSchedule = {};
-                
                 const periodsCount = parseInt(window.appState.config?.periods) || 9;
-                if (!window.appState.teachers || window.appState.teachers.length === 0) {
+                const newSchedule = {};
+                
+                // ก. เก็บตารางเดิมของ "ครูที่ถูกล็อก"
+                for (let key in window.appState.generatedSchedule) {
+                    let tName = key.split('_')[0];
+                    if (window.appState.lockedTeachers[tName]) newSchedule[key] = window.appState.generatedSchedule[key];
+                }
+                // ข. ดึงคาบบังคับจากขั้นที่ 3
+                if (window.appState.fixedSchedule) {
+                    for (let key in window.appState.fixedSchedule) {
+                        let tName = key.split('_')[0];
+                        if (!window.appState.lockedTeachers[tName]) newSchedule[key] = window.appState.fixedSchedule[key];
+                    }
+                }
+                window.appState.generatedSchedule = newSchedule;
+                
+                if (!window.appState.teachers) {
                     window.hideLoader();
                     return;
                 }
 
-                // ตัวแปรสำหรับระบบเรียนรู้และจดจำผลลัพธ์ที่ดีที่สุด (AI Multi-Pass)
-                let bestSchedule = null;
-                let bestForcedCount = Infinity;
-                let conflictWeights = {}; // จดจำวิชาที่มีปัญหาเพื่อให้ Priority สูงสุดในรอบถัดไป
-                const MAX_ITERATIONS = 5; // สุ่มสูงสุด 5 รอบตามที่กำหนด
-
-                for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
-                    let tempSchedule = {};
-                    let forcedCountThisRound = 0;
-                    let problematicClasses = []; // เก็บชื่อวิชาที่มีปัญหาในรอบนี้
+                // ค. คำนวณคาบพักเที่ยง
+                window.appState.teachers.forEach(t => {
+                    if (window.appState.lockedTeachers[t.name]) return;
+                    let lunchCounts = {};
+                    const rooms = t.rooms ? t.rooms.split(',').map(r => r.trim()).filter(r => r) : [];
+                    rooms.forEach(room => {
+                        let l = getLunchPeriod(room);
+                        if (l > 0) lunchCounts[l] = (lunchCounts[l] || 0) + 1;
+                    });
                     
-                    // ก. ดึงตารางเดิมของ "ครูที่ถูกล็อก" มาใส่
-                    for (let key in window.appState.generatedSchedule) {
+                    let bestLunch = 0; let maxCount = 0;
+                    for (let l in lunchCounts) {
+                        let count = lunchCounts[l];
+                        let p = parseInt(l);
+                        if (count > maxCount) {
+                            maxCount = count; bestLunch = p;
+                        } else if (count === maxCount) {
+                            if (p < bestLunch || bestLunch === 0) bestLunch = p;
+                        }
+                    }
+                    if (bestLunch > 0) {
+                        for(let d=0; d<5; d++) {
+                            let key = `${t.name}_${d}_${bestLunch}`;
+                            if (!window.appState.generatedSchedule[key]) {
+                                window.appState.generatedSchedule[key] = { type: 'empty', label: 'พักเที่ยง' };
+                            }
+                        }
+                    }
+                });
+
+                // ง. จัดกลุ่มวิชา (รองรับ Co-teaching) และคำนวณภาระงาน
+                let classGroups = {};
+                let teacherWorkloads = {};
+                
+                window.appState.teachers.forEach(t => {
+                    const limit = (parseFloat(t.credit) || 0) * 2;
+                    const roomsCount = t.rooms ? t.rooms.split(',').filter(r => r.trim()).length : 0;
+                    teacherWorkloads[t.name] = limit * roomsCount;
+                    
+                    const rooms = t.rooms ? t.rooms.split(',').map(r => r.trim()).filter(r => r) : [];
+                    const type = t.periodType || 'single';
+                    const subjCode = t.subjCode || 'NO_CODE';
+                    
+                    rooms.forEach(room => {
+                        const groupKey = `${subjCode}_${room}`; 
+                        if (!classGroups[groupKey]) {
+                            classGroups[groupKey] = {
+                                teachers: [], subjCode: subjCode, subjName: t.subjName,
+                                room: room, type: type, limit: limit, workload: 0,
+                                label: `${t.subjName} ${room}`, isLocked: false
+                            };
+                        }
+                        if (!classGroups[groupKey].teachers.includes(t.name)) {
+                            classGroups[groupKey].teachers.push(t.name);
+                            classGroups[groupKey].workload += teacherWorkloads[t.name]; // รวมภาระงานครูทุกคนในกลุ่ม
+                        }
+                        if (window.appState.lockedTeachers[t.name]) classGroups[groupKey].isLocked = true;
+                    });
+                });
+
+                // หักลบคาบที่จัดไปแล้ว (Fixed)
+                const fixedCounts = {};
+                for (let key in window.appState.generatedSchedule) {
+                    let data = window.appState.generatedSchedule[key];
+                    if (data.type === 'subject') {
                         let tName = key.split('_')[0];
-                        if (window.appState.lockedTeachers[tName]) tempSchedule[key] = window.appState.generatedSchedule[key];
+                        let teacher = window.appState.teachers.find(t => t.name === tName);
+                        if (teacher) {
+                            let parts = data.label.split(' ');
+                            let room = parts.length > 1 ? parts[parts.length - 1] : "";
+                            let groupKey = `${teacher.subjCode || 'NO_CODE'}_${room}`;
+                            let scheduleKey = `${groupKey}_${key.split('_')[1]}_${key.split('_')[2]}`;
+                            if (!fixedCounts[scheduleKey]) {
+                                fixedCounts[groupKey] = (fixedCounts[groupKey] || 0) + 1;
+                                fixedCounts[scheduleKey] = true; // ป้องกันนับซ้ำในคาบเดียวกันสำหรับ Co-teaching
+                            }
+                        }
                     }
+                }
+
+                // แตกกลุ่มวิชาออกเป็นชิ้นๆ ตามจำนวนคาบ
+                let classesToSchedule = []; 
+                for (let gKey in classGroups) {
+                    let group = classGroups[gKey];
+                    let remaining = group.limit - (fixedCounts[gKey] || 0);
+                    let pLen = group.type === 'quad' ? 4 : (group.type === 'triple' ? 3 : (group.type === 'double' ? 2 : 1));
                     
-                    // ข. ดึงคาบบังคับจากขั้นที่ 3
-                    if (window.appState.fixedSchedule) {
-                        for (let key in window.appState.fixedSchedule) {
-                            let tName = key.split('_')[0];
-                            if (!window.appState.lockedTeachers[tName]) tempSchedule[key] = window.appState.fixedSchedule[key];
+                    if (remaining > 0 && !group.isLocked) {
+                        while (remaining >= pLen) { classesToSchedule.push({ ...group, length: pLen }); remaining -= pLen; }
+                        while (remaining > 0) { classesToSchedule.push({ ...group, length: 1 }); remaining--; }
+                    }
+                }
+
+                // 💡 AI Rule 1: Most Constrained First
+                classesToSchedule.sort((a, b) => {
+                    if (a.length !== b.length) return b.length - a.length;
+                    return b.workload - a.workload;
+                });
+
+                // Helper Functions
+                const isRoomFree = (schedule, room, d, p) => {
+                    for (let k in schedule) {
+                        if (k.endsWith(`_${d}_${p}`)) {
+                            let v = schedule[k];
+                            if (v && v.type === 'subject') {
+                                let rParts = v.label.split(' ');
+                                if ((rParts.length > 1 ? rParts[rParts.length - 1] : v.label) === room) return false;
+                            }
                         }
                     }
+                    return true;
+                };
 
-                    // ค. คำนวณคาบพักเที่ยง
-                    window.appState.teachers.forEach(t => {
-                        if (window.appState.lockedTeachers[t.name]) return;
-                        let lunchCounts = {};
-                        const rooms = t.rooms ? t.rooms.split(',').map(r => r.trim()).filter(r => r) : [];
-                        rooms.forEach(room => {
-                            let l = getLunchPeriod(room);
-                            if (l > 0) lunchCounts[l] = (lunchCounts[l] || 0) + 1;
-                        });
-                        
-                        let bestLunch = 0; let maxCount = 0;
-                        for (let l in lunchCounts) {
-                            let count = lunchCounts[l];
-                            let p = parseInt(l);
-                            if (count > maxCount) {
-                                maxCount = count; bestLunch = p;
-                            } else if (count === maxCount) {
-                                if (p < bestLunch || bestLunch === 0) bestLunch = p;
-                            }
-                        }
-                        if (bestLunch > 0) {
-                            for(let d=0; d<5; d++) {
-                                let key = `${t.name}_${d}_${bestLunch}`;
-                                if (!tempSchedule[key]) {
-                                    tempSchedule[key] = { type: 'empty', label: 'พักเที่ยง' };
-                                }
-                            }
-                        }
-                    });
+                const isTeacherFree = (schedule, tName, d, p) => !schedule[`${tName}_${d}_${p}`];
 
-                    // ง. จัดกลุ่มวิชา (รองรับ Co-teaching) และคำนวณภาระงาน
-                    let classGroups = {};
-                    let teacherWorkloads = {};
+                const canPlaceGroup = (schedule, group, d, startP, length) => {
+                    if (startP + length - 1 > periodsCount) return false;
+                    for (let i = 0; i < length; i++) {
+                        let p = startP + i;
+                        if (!isRoomFree(schedule, group.room, d, p)) return false;
+                        for (let tName of group.teachers) if (!isTeacherFree(schedule, tName, d, p)) return false;
+                    }
+                    return true;
+                };
+
+                const hasGroupToday = (schedule, group, d) => {
+                    for (let p = 1; p <= periodsCount; p++) {
+                        for (let tName of group.teachers) {
+                            let v = schedule[`${tName}_${d}_${p}`];
+                            if (v && v.type === 'subject' && v.label === group.label) return true;
+                        }
+                    }
+                    return false;
+                };
+
+                let forcedCount = 0;
+                
+                // จ. เริ่มจัดลงตาราง
+                for (let cls of classesToSchedule) {
+                    let placed = false;
                     
-                    window.appState.teachers.forEach(t => {
-                        const limit = (parseFloat(t.credit) || 0) * 2;
-                        const roomsCount = t.rooms ? t.rooms.split(',').filter(r => r.trim()).length : 0;
-                        teacherWorkloads[t.name] = limit * roomsCount;
-                        
-                        const rooms = t.rooms ? t.rooms.split(',').map(r => r.trim()).filter(r => r) : [];
-                        const type = t.periodType || 'single';
-                        const subjCode = t.subjCode || 'NO_CODE';
-                        
-                        rooms.forEach(room => {
-                            const groupKey = `${subjCode}_${room}`; 
-                            if (!classGroups[groupKey]) {
-                                classGroups[groupKey] = {
-                                    teachers: [], subjCode: subjCode, subjName: t.subjName,
-                                    room: room, type: type, limit: limit, workload: 0,
-                                    label: `${t.subjName} ${room}`, isLocked: false
-                                };
-                            }
-                            if (!classGroups[groupKey].teachers.includes(t.name)) {
-                                classGroups[groupKey].teachers.push(t.name);
-                                classGroups[groupKey].workload += teacherWorkloads[t.name];
-                            }
-                            if (window.appState.lockedTeachers[t.name]) classGroups[groupKey].isLocked = true;
-                        });
-                    });
-
-                    // หักลบคาบที่จัดไปแล้ว (Fixed)
-                    const fixedCounts = {};
-                    for (let key in tempSchedule) {
-                        let data = tempSchedule[key];
-                        if (data.type === 'subject') {
-                            let tName = key.split('_')[0];
-                            let teacher = window.appState.teachers.find(t => t.name === tName);
-                            if (teacher) {
-                                let parts = data.label.split(' ');
-                                let room = parts.length > 1 ? parts[parts.length - 1] : "";
-                                let groupKey = `${teacher.subjCode || 'NO_CODE'}_${room}`;
-                                let scheduleKey = `${groupKey}_${key.split('_')[1]}_${key.split('_')[2]}`;
-                                if (!fixedCounts[scheduleKey]) {
-                                    fixedCounts[groupKey] = (fixedCounts[groupKey] || 0) + 1;
-                                    fixedCounts[scheduleKey] = true;
-                                }
-                            }
-                        }
-                    }
-
-                    // แตกกลุ่มวิชาออกเป็นชิ้นๆ ตามจำนวนคาบ
-                    let classesToSchedule = []; 
-                    for (let gKey in classGroups) {
-                        let group = classGroups[gKey];
-                        let remaining = group.limit - (fixedCounts[gKey] || 0);
-                        let pLen = group.type === 'quad' ? 4 : (group.type === 'triple' ? 3 : (group.type === 'double' ? 2 : 1));
-                        
-                        if (remaining > 0 && !group.isLocked) {
-                            while (remaining >= pLen) { classesToSchedule.push({ ...group, length: pLen }); remaining -= pLen; }
-                            while (remaining > 0) { classesToSchedule.push({ ...group, length: 1 }); remaining--; }
-                        }
-                    }
-
-                    // 💡 AI Rule: จัดเรียงความสำคัญ (เรียงตามน้ำหนักความยากจากรอบก่อนหน้า -> คาบยาวสุด -> ภาระงานเยอะสุด)
-                    classesToSchedule.sort((a, b) => {
-                        let weightA = conflictWeights[a.label] || 0;
-                        let weightB = conflictWeights[b.label] || 0;
-                        if (weightA !== weightB) return weightB - weightA; // ระบบเรียนรู้: วิชายากสุดให้จัดก่อน
-                        if (a.length !== b.length) return b.length - a.length;
-                        return b.workload - a.workload;
-                    });
-
-                    // Helper Functions
-                    const isRoomFree = (schedule, room, d, p) => {
-                        for (let k in schedule) {
-                            if (k.endsWith(`_${d}_${p}`)) {
-                                let v = schedule[k];
-                                if (v && v.type === 'subject') {
-                                    let rParts = v.label.split(' ');
-                                    if ((rParts.length > 1 ? rParts[rParts.length - 1] : v.label) === room) return false;
-                                }
-                            }
-                        }
-                        return true;
-                    };
-                    const isTeacherFree = (schedule, tName, d, p) => !schedule[`${tName}_${d}_${p}`];
-                    const canPlaceGroup = (schedule, group, d, startP, length) => {
-                        if (startP + length - 1 > periodsCount) return false;
-                        for (let i = 0; i < length; i++) {
-                            let p = startP + i;
-                            if (!isRoomFree(schedule, group.room, d, p)) return false;
-                            for (let tName of group.teachers) if (!isTeacherFree(schedule, tName, d, p)) return false;
-                        }
-                        return true;
-                    };
-                    const hasGroupToday = (schedule, group, d) => {
+                    // 💡 AI Rule 2: Least Constraining Value (หาวันที่ห้องว่างที่สุด)
+                    let dayScores = [0, 1, 2, 3, 4].map(d => {
+                        let freeSlots = 0;
                         for (let p = 1; p <= periodsCount; p++) {
-                            for (let tName of group.teachers) {
-                                let v = schedule[`${tName}_${d}_${p}`];
-                                if (v && v.type === 'subject' && v.label === group.label) return true;
+                            if (canPlaceGroup(window.appState.generatedSchedule, cls, d, p, 1)) freeSlots++;
+                        }
+                        return { day: d, score: freeSlots };
+                    });
+                    dayScores.sort((a, b) => b.score - a.score);
+
+                    // ขั้นตอนที่ 1: พยายามวางแบบปกติ
+                    for (let ds of dayScores) {
+                        if (placed) break;
+                        let d = ds.day;
+                        if (cls.length === 1 && hasGroupToday(window.appState.generatedSchedule, cls, d)) continue;
+                        let periodsArr = Array.from({length: periodsCount}, (_, i) => i + 1).sort(() => Math.random() - 0.5);
+                        for (let p of periodsArr) {
+                            if (placed) break;
+                            if (canPlaceGroup(window.appState.generatedSchedule, cls, d, p, cls.length)) {
+                                for (let i = 0; i < cls.length; i++) {
+                                    cls.teachers.forEach(tName => {
+                                        window.appState.generatedSchedule[`${tName}_${d}_${p+i}`] = { 
+                                            type: 'subject', label: cls.label, isAuto: true, subjCode: cls.subjCode 
+                                        };
+                                    });
+                                }
+                                placed = true;
                             }
                         }
-                        return false;
-                    };
+                    }
 
-                    // จ. เริ่มจัดลงตาราง
-                    for (let cls of classesToSchedule) {
-                        let placed = false;
-                        
-                        let dayScores = [0, 1, 2, 3, 4].map(d => {
-                            let freeSlots = 0;
-                            for (let p = 1; p <= periodsCount; p++) {
-                                if (canPlaceGroup(tempSchedule, cls, d, p, 1)) freeSlots++;
-                            }
-                            return { day: d, score: freeSlots };
-                        });
-                        dayScores.sort((a, b) => b.score - a.score);
-
-                        // ขั้นตอนที่ 1: พยายามวางแบบปกติ
+                    // ขั้นตอนที่ 2: 💡 AI Rule 3 - Local Search & Eviction (รองรับ Co-teaching และ 1 คาบ)
+                    if (!placed && cls.length === 1) {
                         for (let ds of dayScores) {
                             if (placed) break;
                             let d = ds.day;
-                            if (cls.length === 1 && hasGroupToday(tempSchedule, cls, d)) continue;
-                            let periodsArr = Array.from({length: periodsCount}, (_, i) => i + 1).sort(() => Math.random() - 0.5);
-                            for (let p of periodsArr) {
+                            if (hasGroupToday(window.appState.generatedSchedule, cls, d)) continue;
+                            
+                            for (let p = 1; p <= periodsCount; p++) {
                                 if (placed) break;
-                                if (canPlaceGroup(tempSchedule, cls, d, p, cls.length)) {
+                                
+                                // เช็คว่าครูทุกคนในกลุ่มเราว่างไหมในคาบนี้
+                                let ourTeachersFree = true;
+                                for(let tName of cls.teachers) {
+                                    if(!isTeacherFree(window.appState.generatedSchedule, tName, d, p)) { ourTeachersFree = false; break; }
+                                }
+                                
+                                // ถ้าครูเราว่าง แต่ห้องไม่ว่าง (ติดคนอื่นสอนอยู่) ให้ลองเตะ
+                                if (ourTeachersFree && !isRoomFree(window.appState.generatedSchedule, cls.room, d, p)) {
+                                    
+                                    // หาว่าใครครองห้องนี้อยู่ (รวมถึงกลุ่ม Co-teaching เดิม)
+                                    let occupants = [];
+                                    let occupantLabel = "";
+                                    for (let k in window.appState.generatedSchedule) {
+                                        if (k.endsWith(`_${d}_${p}`)) {
+                                            let v = window.appState.generatedSchedule[k];
+                                            if (v.type === 'subject' && v.label.includes(cls.room)) {
+                                                let tName = k.split('_')[0];
+                                                if(!window.appState.lockedTeachers[tName]) {
+                                                    occupants.push({key: k, tName: tName, data: v});
+                                                    occupantLabel = v.label;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    
+                                    if (occupants.length > 0) {
+                                        let moved = false;
+                                        // ลองหาที่อยู่ใหม่ให้กลุ่มคนที่กำลังจะโดนเตะออก
+                                        for(let altD = 0; altD < 5; altD++) {
+                                            if(moved) break;
+                                            // เพื่อความง่ายเช็คแค่ว่าคนที่โดนเตะ ไม่ได้สอนวิชานี้อยู่แล้วในวันใหม่
+                                            let hasToday = false;
+                                            for(let pTemp = 1; pTemp <= periodsCount; pTemp++) {
+                                                if(window.appState.generatedSchedule[`${occupants[0].tName}_${altD}_${pTemp}`]?.label === occupantLabel) hasToday = true;
+                                            }
+                                            if(hasToday) continue;
+                                            
+                                            for(let altP = 1; altP <= periodsCount; altP++) {
+                                                // เช็คว่าห้องว่างไหม และครูทุกคนในกลุ่มเดิมว่างไหมในเวลาใหม่
+                                                let newSlotValid = true;
+                                                if(!isRoomFree(window.appState.generatedSchedule, cls.room, altD, altP)) newSlotValid = false;
+                                                for(let occ of occupants) {
+                                                    if(!isTeacherFree(window.appState.generatedSchedule, occ.tName, altD, altP)) newSlotValid = false;
+                                                }
+                                                
+                                                if(newSlotValid) {
+                                                    // ย้ายสำเร็จ! เคลียร์ที่เดิม ย้ายไปที่ใหม่
+                                                    occupants.forEach(occ => {
+                                                        window.appState.generatedSchedule[`${occ.tName}_${altD}_${altP}`] = occ.data;
+                                                        delete window.appState.generatedSchedule[occ.key];
+                                                    });
+                                                    
+                                                    // วางวิชาของเราลงไปแทนที่
+                                                    cls.teachers.forEach(tName => {
+                                                        window.appState.generatedSchedule[`${tName}_${d}_${p}`] = { 
+                                                            type: 'subject', label: cls.label, isAuto: true, subjCode: cls.subjCode 
+                                                        };
+                                                    });
+                                                    
+                                                    placed = true;
+                                                    moved = true;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // ขั้นตอนที่ 3: Force Placement (จนปัญญาแล้ว ยัดให้ชน)
+                    if (!placed) {
+                        for(let d=0; d<5; d++){
+                            for(let p=1; p <= periodsCount - cls.length + 1; p++){
+                                let teachersFree = true;
+                                for (let i = 0; i < cls.length; i++) {
+                                    for(let tName of cls.teachers) {
+                                        if(!isTeacherFree(window.appState.generatedSchedule, tName, d, p+i)) { teachersFree = false; break; }
+                                    }
+                                    if(!teachersFree) break;
+                                }
+                                if (teachersFree) {
                                     for (let i = 0; i < cls.length; i++) {
                                         cls.teachers.forEach(tName => {
-                                            tempSchedule[`${tName}_${d}_${p+i}`] = { 
+                                            window.appState.generatedSchedule[`${tName}_${d}_${p+i}`] = { 
                                                 type: 'subject', label: cls.label, isAuto: true, subjCode: cls.subjCode 
                                             };
                                         });
                                     }
-                                    placed = true;
+                                    placed = true; forcedCount++; break;
                                 }
                             }
-                        }
-
-                        // ขั้นตอนที่ 2: AI Eviction (เตะสลับ สำหรับ 1 คาบ)
-                        if (!placed && cls.length === 1) {
-                            for (let ds of dayScores) {
-                                if (placed) break;
-                                let d = ds.day;
-                                if (hasGroupToday(tempSchedule, cls, d)) continue;
-                                
-                                for (let p = 1; p <= periodsCount; p++) {
-                                    if (placed) break;
-                                    let ourTeachersFree = true;
-                                    for(let tName of cls.teachers) {
-                                        if(!isTeacherFree(tempSchedule, tName, d, p)) { ourTeachersFree = false; break; }
-                                    }
-                                    
-                                    if (ourTeachersFree && !isRoomFree(tempSchedule, cls.room, d, p)) {
-                                        let occupants = [];
-                                        let occupantLabel = "";
-                                        for (let k in tempSchedule) {
-                                            if (k.endsWith(`_${d}_${p}`)) {
-                                                let v = tempSchedule[k];
-                                                if (v.type === 'subject' && v.label.includes(cls.room)) {
-                                                    let tName = k.split('_')[0];
-                                                    if(!window.appState.lockedTeachers[tName]) {
-                                                        occupants.push({key: k, tName: tName, data: v});
-                                                        occupantLabel = v.label;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        
-                                        if (occupants.length > 0) {
-                                            let moved = false;
-                                            for(let altD = 0; altD < 5; altD++) {
-                                                if(moved) break;
-                                                let hasToday = false;
-                                                for(let pTemp = 1; pTemp <= periodsCount; pTemp++) {
-                                                    if(tempSchedule[`${occupants[0].tName}_${altD}_${pTemp}`]?.label === occupantLabel) hasToday = true;
-                                                }
-                                                if(hasToday) continue;
-                                                
-                                                for(let altP = 1; altP <= periodsCount; altP++) {
-                                                    let newSlotValid = true;
-                                                    if(!isRoomFree(tempSchedule, cls.room, altD, altP)) newSlotValid = false;
-                                                    for(let occ of occupants) {
-                                                        if(!isTeacherFree(tempSchedule, occ.tName, altD, altP)) newSlotValid = false;
-                                                    }
-                                                    
-                                                    if(newSlotValid) {
-                                                        occupants.forEach(occ => {
-                                                            tempSchedule[`${occ.tName}_${altD}_${altP}`] = occ.data;
-                                                            delete tempSchedule[occ.key];
-                                                        });
-                                                        cls.teachers.forEach(tName => {
-                                                            tempSchedule[`${tName}_${d}_${p}`] = { 
-                                                                type: 'subject', label: cls.label, isAuto: true, subjCode: cls.subjCode 
-                                                            };
-                                                        });
-                                                        placed = true;
-                                                        moved = true;
-                                                        break;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // ขั้นตอนที่ 3: Force Placement (ถ้ายังหาที่ลงไม่ได้ ให้ยัดลงไปและบันทึกข้อผิดพลาด)
-                        if (!placed) {
-                            for(let d=0; d<5; d++){
-                                for(let p=1; p <= periodsCount - cls.length + 1; p++){
-                                    let teachersFree = true;
-                                    for (let i = 0; i < cls.length; i++) {
-                                        for(let tName of cls.teachers) {
-                                            if(!isTeacherFree(tempSchedule, tName, d, p+i)) { teachersFree = false; break; }
-                                        }
-                                        if(!teachersFree) break;
-                                    }
-                                    if (teachersFree) {
-                                        for (let i = 0; i < cls.length; i++) {
-                                            cls.teachers.forEach(tName => {
-                                                tempSchedule[`${tName}_${d}_${p+i}`] = { 
-                                                    type: 'subject', label: cls.label, isAuto: true, subjCode: cls.subjCode 
-                                                };
-                                            });
-                                        }
-                                        placed = true; 
-                                        forcedCountThisRound++; 
-                                        problematicClasses.push(cls.label);
-                                        break;
-                                    }
-                                }
-                                if(placed) break;
-                            }
+                            if(placed) break;
                         }
                     }
-
-                    // ประเมินผลลัพธ์ของรอบนี้
-                    if (forcedCountThisRound < bestForcedCount) {
-                        bestForcedCount = forcedCountThisRound;
-                        bestSchedule = JSON.parse(JSON.stringify(tempSchedule)); // เก็บตารางที่ดีที่สุดไว้
-                    }
-
-                    // ถ้าเจอตารางที่สมบูรณ์แบบ (ไม่ชนเลย) ให้ออกจากการทำซ้ำทันที (ไม่ถึง 5 รอบก็หยุดได้)
-                    if (bestForcedCount === 0) {
-                        break; 
-                    }
-
-                    // ปรับ Priority ให้วิชาที่มีปัญหาในรอบถัดไป
-                    problematicClasses.forEach(label => {
-                        conflictWeights[label] = (conflictWeights[label] || 0) + 1;
-                    });
                 }
                 
-                // นำตารางที่ดีที่สุดจาก 5 รอบไปใช้งานจริง
-                window.appState.generatedSchedule = bestSchedule;
                 window.renderStep4Grid();
                 window.autoSave();
                 
+                // 3. ซ่อนหน้าจอโหลดเมื่อประมวลผลและวาดตารางทุกอย่างเสร็จสิ้น
                 window.hideLoader();
                 
-                if (bestForcedCount > 0) {
-                    showAppAlert('พบตารางชนกัน', `ระบบพยายามจัดตาราง 5 รูปแบบแล้ว แต่ยังติดเงื่อนไขชนกัน ${bestForcedCount} ครั้ง\n\nกรุณากด "ตรวจคาบชนกัน" เพื่อสลับด้วยตนเองครับ`, 'warning');
+                if (forcedCount > 0) {
+                    showAppAlert('พบตารางชนกัน', `อัลกอริทึมพยายามเต็มที่แล้ว แต่ติดเงื่อนไขจัดไม่ลงตัว ${forcedCount} ครั้ง จึงจำเป็นต้องวางให้ชนกัน\n\nกรุณากด "ตรวจคาบชนกัน" เพื่อสลับด้วยตนเองครับ`, 'warning');
                     if(conflictGrp) conflictGrp.classList.remove('hidden');
                 } else {
                     showAppAlert('สำเร็จ!', '✨ สุ่มตารางสอนเรียบร้อยแล้ว อัลกอริทึมทำงานสมบูรณ์ ไม่มีคาบชนกันเลยครับ', 'success');
                 }
-            }, 100);
+            }, 100); // จบ setTimeout
         };
         
         // 3. ฟังก์ชันวาดตาราง Drag & Drop (UI ใหม่)
