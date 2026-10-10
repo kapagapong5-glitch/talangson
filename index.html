@@ -1446,10 +1446,7 @@ window.saveTeacher = () => {
 
         
         window.generateAutoSchedule = () => {
-            // 1. เรียกหน้าจอโหลด (Loading Screen) ขึ้นมาแสดงทันทีที่กดปุ่ม
             window.showLoader();
-
-            // 2. ใช้ setTimeout หน่วงเวลาเล็กน้อย เพื่อให้เบราว์เซอร์แสดงหน้าจอโหลดให้เสร็จก่อนเริ่มประมวลผลหนัก
             setTimeout(() => {
                 const conflictGrp = document.getElementById('conflictActionGroup');
                 if(conflictGrp) conflictGrp.classList.add('hidden');
@@ -1477,7 +1474,7 @@ window.saveTeacher = () => {
                     return;
                 }
 
-                // ค. คำนวณคาบพักเที่ยง
+                // ค. คำนวณคาบพักเที่ยง (แก้ปัญหาพัก 2 คาบ)
                 window.appState.teachers.forEach(t => {
                     if (window.appState.lockedTeachers[t.name]) return;
                     let lunchCounts = {};
@@ -1494,9 +1491,21 @@ window.saveTeacher = () => {
                         if (count > maxCount) {
                             maxCount = count; bestLunch = p;
                         } else if (count === maxCount) {
-                            if (p < bestLunch || bestLunch === 0) bestLunch = p;
+                            // ถ้าจำนวนห้องเท่ากัน ให้ยึดคาบที่น้อยกว่าเสมอ
+                            if (bestLunch === 0 || p < bestLunch) bestLunch = p;
                         }
                     }
+
+                    // เคลียร์คาบพักเที่ยงเก่าที่อาจจะติดมากับ fixedSchedule เพื่อให้มีแค่คาบเดียว
+                    for(let d=0; d<5; d++) {
+                        for(let p=1; p<= periodsCount; p++) {
+                            let key = `${t.name}_${d}_${p}`;
+                            if(window.appState.generatedSchedule[key] && window.appState.generatedSchedule[key].label === 'พักเที่ยง') {
+                                delete window.appState.generatedSchedule[key];
+                            }
+                        }
+                    }
+
                     if (bestLunch > 0) {
                         for(let d=0; d<5; d++) {
                             let key = `${t.name}_${d}_${bestLunch}`;
