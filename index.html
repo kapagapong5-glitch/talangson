@@ -1009,7 +1009,7 @@
         
 <script>
 let currentStep = 1;
-const totalSteps = 7;
+const totalSteps = 8;
 
 window.showLoader = () => {
     const loader = document.getElementById('pageLoader');
@@ -1315,7 +1315,7 @@ window.handleFileUpload = (event) => {
                 addedCount++;
             }
         }
-        alert(`อัปโหลดและเพิ่มข้อมูลสำเร็จ ${addedCount} รายการ!`);
+        showAppAlert('สำเร็จ', `อัปโหลดและเพิ่มข้อมูลสำเร็จ ${addedCount} รายการ!`, 'success');
         window.renderTeachers();
         window.autoSave();
         document.getElementById('excelUpload').value = ""; 
@@ -1398,7 +1398,7 @@ window.saveTeacher = () => {
         periodType: document.getElementById('tPeriodType').value 
     };
     if(!teacherData.name) {
-        alert("กรุณาระบุชื่อครู");
+        showAppAlert('แจ้งเตือน', 'กรุณาระบุชื่อครู', 'warning');
         return;
     }
     if(!window.appState.teachers) window.appState.teachers = [];
@@ -2475,7 +2475,7 @@ window.saveTeacher = () => {
         window.saveAssignedPeriod = () => {
             const selectVal = document.getElementById('assignSubjectSelect').value;
             if(!selectVal) {
-                alert('กรุณาเลือกวิชาที่จะลงในคาบนี้');
+                showAppAlert('แจ้งเตือน', 'กรุณาเลือกวิชาที่จะลงในคาบนี้', 'warning');
                 return;
             }
             
@@ -3490,26 +3490,27 @@ window.saveTeacher = () => {
         };
 
         window.executeLogout = () => {
-            if(!confirm("ต้องการออกจากระบบใช่หรือไม่?")) return;
-            
-            // ล้าง Session
-            window.userSession = { isLoggedIn: false, school: "", username: "", role: "", displayName: "" };
-            
-            // ซ่อนปุ่มบน Navbar
-            const navProfile = document.getElementById('userProfileNav');
-            if(navProfile) navProfile.classList.add('hidden');
-            
-            // ล้างฟอร์มล็อกอินและแสดงหน้าต่างล็อกอิน
-            document.getElementById('loginUsername').value = "";
-            document.getElementById('loginPassword').value = "";
-            document.getElementById('loginScreen').classList.remove('hidden');
-            
-            // รีเซ็ตข้อมูลในหน่วยความจำ
-            window.appState = {
-                currentStep: 1, config: { periods: 9 }, periodTimes: [], gradeLevels: [], teachers: [],
-                totalPeriodsRequired: 0, generatedSchedule: {}, fixedSchedule: {}, assignedRooms: {},
-                roomMappingConfig: { classRooms: {}, teacherRooms: {} }
-            };
+            showAppConfirm("ต้องการออกจากระบบใช่หรือไม่?", () => {
+                // ล้าง Session
+                window.userSession = { isLoggedIn: false, school: "", username: "", role: "", displayName: "" };
+                
+                // ซ่อนปุ่มบน Navbar
+                const navProfile = document.getElementById('userProfileNav');
+                if(navProfile) navProfile.classList.add('hidden');
+                
+                // ล้างฟอร์มล็อกอินและรีเซ็ตปุ่ม (แก้ปุ่มค้าง)
+                document.getElementById('loginUsername').value = "";
+                document.getElementById('loginPassword').value = "";
+                document.getElementById('btnLogin').innerHTML = 'เข้าสู่ระบบ';
+                document.getElementById('loginScreen').classList.remove('hidden');
+                
+                // รีเซ็ตข้อมูลในหน่วยความจำ
+                window.appState = {
+                    currentStep: 1, config: { periods: 9 }, periodTimes: [], gradeLevels: [], teachers: [],
+                    totalPeriodsRequired: 0, generatedSchedule: {}, fixedSchedule: {}, assignedRooms: {},
+                    roomMappingConfig: { classRooms: {}, teacherRooms: {} }
+                };
+            });
         };
 
         window.applyRoleRestrictions = () => {
@@ -3607,7 +3608,7 @@ window.saveTeacher = () => {
             const display = document.getElementById('uDisplay').value;
             const role = document.getElementById('uRole').value;
             
-            if(!user || !pass || !display) return alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+            if(!user || !pass || !display) return showAppAlert('แจ้งเตือน', 'กรุณากรอกข้อมูลให้ครบถ้วน', 'warning');
             
             const mode = row ? "edit" : "add";
             document.getElementById('userModal').classList.add('hidden');
@@ -3629,18 +3630,19 @@ window.saveTeacher = () => {
         };
 
         window.deleteUser = (row, username) => {
-            if(!confirm(`ต้องการลบผู้ใช้ ${username} ใช่หรือไม่?`)) return;
-            window.showLoader();
-            
-            fetch(GAS_URL, { 
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({ action: 'manageUser', mode: 'delete', row: row })
-            })
-            .then(res => res.json())
-            .then(data => {
-                window.hideLoader();
-                if(data.success) { loadUsersFromSheet(); }
+            showAppConfirm(`ต้องการลบผู้ใช้ ${username} ใช่หรือไม่?`, () => {
+                window.showLoader();
+                
+                fetch(GAS_URL, { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ action: 'manageUser', mode: 'delete', row: row })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    window.hideLoader();
+                    if(data.success) { loadUsersFromSheet(); }
+                });
             });
         };
 
