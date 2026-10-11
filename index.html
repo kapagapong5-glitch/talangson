@@ -175,7 +175,12 @@
             
             <!-- Step 1: Basic Info -->
             <div id="step1" class="step-content active">
-                <h2 class="text-2xl font-bold mb-4 text-gray-700 border-b pb-2"><i class="fa-solid fa-gear text-blue-600 mr-2"></i>ขั้นที่ 1: กำหนดข้อมูลพื้นฐาน</h2>
+                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 border-b pb-2">
+                    <h2 class="text-2xl font-bold text-gray-700"><i class="fa-solid fa-gear text-blue-600 mr-2"></i>ขั้นที่ 1: กำหนดข้อมูลพื้นฐาน</h2>
+                    <button onclick="resetStepData(1)" class="bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-200 px-3 py-1.5 rounded-lg text-sm font-semibold transition flex items-center shadow-sm mt-2 sm:mt-0">
+                        <i class="fa-solid fa-trash-can mr-2"></i> ล้างข้อมูลขั้นนี้
+                    </button>
+                </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-4">
@@ -207,7 +212,12 @@
             
             <!-- Step 2: Teacher Setup -->
             <div id="step2" class="step-content">
-                <h2 class="text-2xl font-bold mb-4 text-gray-700 border-b pb-2"><i class="fa-solid fa-users text-blue-600 mr-2"></i>ขั้นที่ 2: จัดการผู้สอนและวิชา</h2>
+                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 border-b pb-2">
+                    <h2 class="text-2xl font-bold text-gray-700"><i class="fa-solid fa-users text-blue-600 mr-2"></i>ขั้นที่ 2: จัดการผู้สอนและวิชา</h2>
+                    <button onclick="resetStepData(2)" class="bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-200 px-3 py-1.5 rounded-lg text-sm font-semibold transition flex items-center shadow-sm mt-2 sm:mt-0">
+                        <i class="fa-solid fa-trash-can mr-2"></i> ล้างข้อมูลขั้นนี้
+                    </button>
+                </div>
                 
                 <!-- ส่วนสรุปคาบสอน 3 กล่อง -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -289,7 +299,10 @@
                             </select>
                         </div>
 
-                        <button onclick="openBatchActivityModal()" class="bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 transition shadow flex items-center font-medium ml-auto">
+                        <button onclick="resetStepData(3)" class="bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-200 px-3 py-1.5 rounded-lg text-sm font-semibold transition flex items-center shadow-sm ml-auto">
+                            <i class="fa-solid fa-trash-can"></i><span class="hidden sm:inline ml-2">ล้างคาบบังคับ</span>
+                        </button>
+                        <button onclick="openBatchActivityModal()" class="bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 transition shadow flex items-center font-medium">
                             <i class="fa-solid fa-calendar-plus mr-2"></i>กำหนดคาบกิจกรรม
                         </button>
                     </div>
@@ -338,7 +351,10 @@
                             </button>
                         </div>
 
-                        <button class="bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 transition shadow flex items-center font-medium ml-auto" onclick="generateAutoSchedule()">
+                        <button onclick="resetStepData(4)" class="bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-200 px-3 py-1.5 rounded-lg text-sm font-semibold transition flex items-center shadow-sm ml-auto">
+                            <i class="fa-solid fa-trash-can"></i><span class="hidden sm:inline ml-2">ล้างตาราง</span>
+                        </button>
+                        <button class="bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 transition shadow flex items-center font-medium" onclick="generateAutoSchedule()">
                             <i class="fa-solid fa-rotate mr-2"></i>สุ่มจัดใหม่ (ข้ามคนที่ล็อก)
                         </button>
                     </div>
@@ -404,7 +420,10 @@
                             </select>
                         </div>
                         
-                        <button class="bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-100 transition shadow-sm hidden flex items-center font-bold" id="btnCheckRoomConflict" onclick="checkRoomConflicts()">
+                        <button onclick="resetStepData(5)" class="bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-200 px-3 py-1.5 rounded-lg text-sm font-semibold transition flex items-center shadow-sm">
+                            <i class="fa-solid fa-trash-can"></i><span class="hidden sm:inline ml-2">ล้างจัดห้อง</span>
+                        </button>
+                        <button class="bg-orange-50 text-orange-600 border border-orange-200 px-4 py-2 rounded-lg hover:bg-orange-100 transition shadow-sm hidden flex items-center font-bold" id="btnCheckRoomConflict" onclick="checkRoomConflicts()">
                             <i class="fa-solid fa-triangle-exclamation mr-2 animate-pulse"></i>ตรวจห้องชนกัน
                         </button>
                     </div>
@@ -1222,6 +1241,59 @@ function goToStep(step) {
             
             const navDisplay = document.getElementById('remainingPeriodsDisplay');
             if(navDisplay) navDisplay.innerText = remainingPeriods;
+        };
+
+        // ฟังก์ชันรีเซตข้อมูลแบบปฏิกิริยาลูกโซ่ (Cascading Reset)
+        window.resetStepData = (step) => {
+            let message = "";
+            if (step === 1) message = "การล้างข้อมูลขั้นที่ 1 จะทำให้ข้อมูล โครงสร้าง, ครู, คาบบังคับ และตาราง (ขั้น 1-5) ถูกลบทิ้งทั้งหมด!<br><br>คุณแน่ใจหรือไม่?";
+            else if (step === 2) message = "การล้างข้อมูลขั้นที่ 2 จะทำให้ข้อมูล รายชื่อครู, คาบบังคับ และตารางสอน (ขั้น 2-5) ถูกลบทิ้งทั้งหมด!<br><br>คุณแน่ใจหรือไม่?";
+            else if (step === 3) message = "การล้างข้อมูลขั้นที่ 3 จะทำให้ คาบบังคับ/กิจกรรม และตารางสอนที่จัดไว้ (ขั้น 3-5) ถูกลบทิ้งทั้งหมด!<br><br>คุณแน่ใจหรือไม่?";
+            else if (step === 4) message = "การล้างข้อมูลขั้นที่ 4 จะทำให้ ตารางสอนที่จัดไว้ และการจัดห้อง (ขั้น 4-5) ถูกลบทิ้งทั้งหมด!<br><br>คุณแน่ใจหรือไม่?";
+            else if (step === 5) message = "การล้างข้อมูลขั้นที่ 5 จะลบเฉพาะ การตั้งค่าห้องเรียนในตาราง เท่านั้น!<br><br>คุณแน่ใจหรือไม่?";
+
+            showAppConfirm(message, () => {
+                window.showLoader();
+                
+                // ลบข้อมูลแบบลูกโซ่
+                if (step <= 1) {
+                    window.appState.config = { periods: 9 };
+                    window.appState.periodTimes = [];
+                    window.appState.gradeLevels = [];
+                    window.appState.totalPeriodsRequired = 0;
+                    document.getElementById('periodsPerDay').value = 9;
+                    document.getElementById('periodTimesContainer').innerHTML = "";
+                    document.getElementById('gradeRows').innerHTML = "";
+                }
+                if (step <= 2) {
+                    window.appState.teachers = [];
+                    const tbody = document.getElementById('teacherTableBody');
+                    if(tbody) tbody.innerHTML = "";
+                }
+                if (step <= 3) {
+                    window.appState.fixedSchedule = {};
+                    window.appState.lockedTeachers = {};
+                }
+                if (step <= 4) {
+                    window.appState.generatedSchedule = {};
+                }
+                if (step <= 5) {
+                    window.appState.assignedRooms = {};
+                    window.appState.roomMappingConfig = { classRooms: {}, teacherRooms: {} };
+                }
+
+                // บันทึกการรีเซตลง Firebase ทันที และวาดหน้าจอใหม่
+                window.saveToFirebase().then(() => {
+                    if (window.restoreUIFromState) window.restoreUIFromState();
+                    if (window.calculateTotalPeriods) window.calculateTotalPeriods();
+                    if (step >= 3 && window.renderStep3Grid) window.renderStep3Grid();
+                    if (step >= 4 && window.renderStep4Grid) window.renderStep4Grid(); 
+                    if (step >= 5 && window.renderStep5Grid) window.renderStep5Grid();
+                    
+                    window.hideLoader();
+                    showAppAlert('รีเซตสำเร็จ!', `ล้างข้อมูลขั้นที่ ${step} และข้อมูลที่เกี่ยวข้องเรียบร้อยแล้ว`, 'success');
+                });
+            });
         };
 
         // ฟังก์ชันสร้างช่องกำหนดเวลาแต่ละคาบ (ใช้ตอนผู้ใช้ปรับตัวเลข "จำนวนคาบเรียนต่อวัน")
