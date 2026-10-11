@@ -1246,17 +1246,18 @@ function goToStep(step) {
         // ฟังก์ชันรีเซตข้อมูลแบบปฏิกิริยาลูกโซ่ (Cascading Reset)
         window.resetStepData = (step) => {
             let message = "";
-            if (step === 1) message = "การล้างข้อมูลขั้นที่ 1 จะทำให้ข้อมูล โครงสร้าง, ครู, คาบบังคับ และตาราง (ขั้น 1-5) ถูกลบทิ้งทั้งหมด!<br><br>คุณแน่ใจหรือไม่?";
-            else if (step === 2) message = "การล้างข้อมูลขั้นที่ 2 จะทำให้ข้อมูล รายชื่อครู, คาบบังคับ และตารางสอน (ขั้น 2-5) ถูกลบทิ้งทั้งหมด!<br><br>คุณแน่ใจหรือไม่?";
-            else if (step === 3) message = "การล้างข้อมูลขั้นที่ 3 จะทำให้ คาบบังคับ/กิจกรรม และตารางสอนที่จัดไว้ (ขั้น 3-5) ถูกลบทิ้งทั้งหมด!<br><br>คุณแน่ใจหรือไม่?";
-            else if (step === 4) message = "การล้างข้อมูลขั้นที่ 4 จะทำให้ ตารางสอนที่จัดไว้ และการจัดห้อง (ขั้น 4-5) ถูกลบทิ้งทั้งหมด!<br><br>คุณแน่ใจหรือไม่?";
-            else if (step === 5) message = "การล้างข้อมูลขั้นที่ 5 จะลบเฉพาะ การตั้งค่าห้องเรียนในตาราง เท่านั้น!<br><br>คุณแน่ใจหรือไม่?";
+            // ใช้ \n เพื่อขึ้นบรรทัดใหม่ใน Custom Confirm
+            if (step === 1) message = "การล้างข้อมูลขั้นที่ 1 จะลบโครงสร้างเวลาเรียน และรีเซตตารางสอน (ขั้น 1, 3, 4, 5)\n\n* ข้อมูลครูในขั้นที่ 2 จะไม่ถูกลบ *\n\nคุณแน่ใจหรือไม่?";
+            else if (step === 2) message = "การล้างข้อมูลขั้นที่ 2 จะลบข้อมูลรายชื่อครู และรีเซตตารางสอนทั้งหมด (ขั้น 2, 3, 4, 5)\n\nคุณแน่ใจหรือไม่?";
+            else if (step === 3) message = "การล้างข้อมูลขั้นที่ 3 จะลบคาบบังคับ/กิจกรรม และตารางสอนที่จัดไว้ (ขั้น 3, 4, 5)\n\nคุณแน่ใจหรือไม่?";
+            else if (step === 4) message = "การล้างข้อมูลขั้นที่ 4 จะลบตารางสอนที่จัดไว้ และการจัดห้อง (ขั้น 4, 5)\n\nคุณแน่ใจหรือไม่?";
+            else if (step === 5) message = "การล้างข้อมูลขั้นที่ 5 จะลบเฉพาะ การตั้งค่าห้องเรียนในตาราง เท่านั้น!\n\nคุณแน่ใจหรือไม่?";
 
             showAppConfirm(message, () => {
                 window.showLoader();
                 
-                // ลบข้อมูลแบบลูกโซ่
-                if (step <= 1) {
+                // ลบข้อมูลแบบลูกโซ่ที่ถูกต้อง (ขั้น 1 จะไม่ลบขั้น 2)
+                if (step === 1) {
                     window.appState.config = { periods: 9 };
                     window.appState.periodTimes = [];
                     window.appState.gradeLevels = [];
@@ -1265,19 +1266,26 @@ function goToStep(step) {
                     document.getElementById('periodTimesContainer').innerHTML = "";
                     document.getElementById('gradeRows').innerHTML = "";
                 }
-                if (step <= 2) {
+                
+                if (step === 2) {
                     window.appState.teachers = [];
                     const tbody = document.getElementById('teacherTableBody');
                     if(tbody) tbody.innerHTML = "";
                 }
-                if (step <= 3) {
+
+                // ถ้ารีเซตขั้น 1, 2, 3 ต้องล้างคาบบังคับ (ขั้น 3)
+                if (step === 1 || step === 2 || step === 3) {
                     window.appState.fixedSchedule = {};
                     window.appState.lockedTeachers = {};
                 }
-                if (step <= 4) {
+                
+                // ถ้ารีเซตขั้น 1, 2, 3, 4 ต้องล้างตารางที่จัดแล้ว (ขั้น 4)
+                if (step === 1 || step === 2 || step === 3 || step === 4) {
                     window.appState.generatedSchedule = {};
                 }
-                if (step <= 5) {
+                
+                // ถ้ารีเซตขั้นใดๆ (1-5) ต้องล้างห้องเรียน (ขั้น 5) เสมอ เพราะเกี่ยวโยงกับตาราง
+                if (step >= 1 && step <= 5) {
                     window.appState.assignedRooms = {};
                     window.appState.roomMappingConfig = { classRooms: {}, teacherRooms: {} };
                 }
@@ -1286,12 +1294,14 @@ function goToStep(step) {
                 window.saveToFirebase().then(() => {
                     if (window.restoreUIFromState) window.restoreUIFromState();
                     if (window.calculateTotalPeriods) window.calculateTotalPeriods();
-                    if (step >= 3 && window.renderStep3Grid) window.renderStep3Grid();
-                    if (step >= 4 && window.renderStep4Grid) window.renderStep4Grid(); 
-                    if (step >= 5 && window.renderStep5Grid) window.renderStep5Grid();
+                    
+                    // สั่งวาดหน้าจอ 3, 4, 5 ใหม่ให้ว่างเปล่า
+                    if (step === 1 || step >= 3) { if (window.renderStep3Grid) window.renderStep3Grid(); }
+                    if (step === 1 || step >= 4) { if (window.renderStep4Grid) window.renderStep4Grid(); }
+                    if (step === 1 || step >= 5) { if (window.renderStep5Grid) window.renderStep5Grid(); }
                     
                     window.hideLoader();
-                    showAppAlert('รีเซตสำเร็จ!', `ล้างข้อมูลขั้นที่ ${step} และข้อมูลที่เกี่ยวข้องเรียบร้อยแล้ว`, 'success');
+                    showAppAlert('รีเซตสำเร็จ!', `ล้างข้อมูลขั้นที่ ${step} และตารางที่เกี่ยวข้องเรียบร้อยแล้ว`, 'success');
                 });
             });
         };
