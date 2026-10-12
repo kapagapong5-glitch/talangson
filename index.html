@@ -942,55 +942,77 @@
             if(window.calculateTotalPeriods) window.calculateTotalPeriods();
         };
 
-        // ฟังก์ชัน Save เข้าฐานข้อมูล (แยก Path ตามโรงเรียน)
         window.saveToFirebase = function() {
             if(!window.userSession || !window.userSession.isLoggedIn || !window.userSession.school) return Promise.resolve();
-            return set(ref(db, `${window.userSession.school}/scheduleData`), window.appState)
-                .then(() => {
-                    const statusEl = document.getElementById('saveStatus');
-                    if(statusEl) statusEl.innerHTML = '<i class="fa-solid fa-check text-green-300"></i> บันทึกแล้ว';
-                })
-                .catch((error) => {
-                    console.error("Error saving:", error);
-                    const statusEl = document.getElementById('saveStatus');
-                    if(statusEl) statusEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-300"></i> บันทึกไม่สำเร็จ';
-                });
+            
+            return new Promise((resolve, reject) => {
+                try {
+                    // 🌟 แปลง State เป็น JSON เพื่อล้างค่า 'undefined' ที่ทำให้ Firebase พังทิ้งไปให้หมด
+                    const cleanState = JSON.parse(JSON.stringify(window.appState));
+                    
+                    set(ref(db, `${window.userSession.school}/scheduleData`), cleanState)
+                        .then(() => {
+                            const statusEl = document.getElementById('saveStatus');
+                            if(statusEl) statusEl.innerHTML = '<i class="fa-solid fa-check text-green-300"></i> บันทึกแล้ว';
+                            resolve();
+                        })
+                        .catch((error) => {
+                            console.error("Firebase Set Error:", error);
+                            const statusEl = document.getElementById('saveStatus');
+                            if(statusEl) statusEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-300"></i> บันทึกไม่สำเร็จ';
+                            reject(error);
+                        });
+                } catch(e) {
+                    console.error("Clean State Error:", e);
+                    reject(e);
+                }
+            });
         };
-
+        
         let saveTimeout;
         window.autoSave = function() {
-            if(!window.userSession.isLoggedIn) return; // บล็อกถ้ายังไม่ล็อกอิน
+            if(!window.userSession.isLoggedIn) return; 
             clearTimeout(saveTimeout);
             const statusEl = document.getElementById('saveStatus');
             if(statusEl) statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
             
             saveTimeout = setTimeout(() => {
-                if (window.gatherData) window.gatherData(); 
-                window.saveToFirebase();
+                try {
+                    if (window.gatherData) window.gatherData(); 
+                    window.saveToFirebase();
+                } catch(e) { console.error("AutoSave Error:", e); }
             }, 1000);
         };
 
         window.manualSave = function() {
             if(!window.userSession.isLoggedIn) return;
+            
+            // 🌟 ป้องกัน AutoSave ทำงานซ้อนทับ เมื่อผู้ใช้กดเซฟเอง
+            clearTimeout(saveTimeout); 
+            
             const statusEl = document.getElementById('saveStatus');
             if(statusEl) statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
             
-            if (window.gatherData) window.gatherData();
-            
-            // ใช้ Promise.race ตั้งเวลา Timeout ไม่ให้มันหมุนค้างตลอดกาล
-            Promise.race([
-                window.saveToFirebase(),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
-            ])
-            .then(() => {
-                if(statusEl) statusEl.innerHTML = '<i class="fa-solid fa-check text-green-300"></i> บันทึกแล้ว';
-                showAppAlert('บันทึกสำเร็จ', 'บันทึกข้อมูลลงฐานข้อมูลเรียบร้อยแล้ว!', 'success');
-            })
-            .catch((err) => {
-                console.error("Save error:", err);
-                if(statusEl) statusEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-300"></i> รอซิงค์...';
-                showAppAlert('บันทึกในเครื่องสำเร็จ', 'ข้อมูลอัปเดตในหน้าจอแล้ว แต่อาจจะยังไม่ซิงค์กับคลาวด์ (กรุณาตรวจสอบอินเทอร์เน็ต)', 'warning');
-            });
+            try {
+                if (window.gatherData) window.gatherData();
+                
+                // แข่งกับเวลา 8 วินาที ป้องกันหน้าจอค้าง
+                Promise.race([
+                    window.saveToFirebase(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
+                ])
+                .then(() => {
+                    showAppAlert('บันทึกสำเร็จ', 'บันทึกข้อมูลลงฐานข้อมูลเรียบร้อยแล้ว!', 'success');
+                })
+                .catch((err) => {
+                    console.error("Save error:", err);
+                    if(statusEl) statusEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-300"></i> รอซิงค์...';
+                    showAppAlert('บันทึกสำเร็จ (รอซิงค์)', 'บันทึกข้อมูลลงเครื่องแล้ว ระบบกำลังพยายามส่งขึ้นคลาวด์ (โปรดตรวจสอบอินเทอร์เน็ต)', 'warning');
+                });
+            } catch(e) {
+                console.error("Manual Save Error:", e);
+                showAppAlert('ข้อผิดพลาด', 'มีข้อผิดพลาดในการประมวลผลข้อมูล กรุณารีเฟรชหน้าจอใหม่', 'error');
+            }
         };
 
         // ฟังก์ชันดึงข้อมูลเมื่อโหลด (ถูกเรียกหลังจากล็อกอินผ่าน)
