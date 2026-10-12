@@ -1706,18 +1706,20 @@ window.saveTeacher = () => {
                 const periodsCount = parseInt(window.appState.config?.periods) || 9;
                 const newSchedule = {};
                 
-                // ก. เก็บตารางเดิมของ "ครูที่ถูกล็อก" และคาบบังคับ
+                // ก. เก็บตารางเดิมของ "ครูที่ถูกล็อก"
                 for (let key in window.appState.generatedSchedule) {
                     let tName = key.split('_')[0];
                     if (window.appState.lockedTeachers[tName]) newSchedule[key] = window.appState.generatedSchedule[key];
                 }
+                
+                // ข. เอาคาบบังคับและกิจกรรมมาใส่ทับ (คาบบังคับถือเป็น Priority สูงสุด ทะลุการล็อก)
                 if (window.appState.fixedSchedule) {
                     for (let key in window.appState.fixedSchedule) {
-                        let tName = key.split('_')[0];
-                        if (!window.appState.lockedTeachers[tName]) newSchedule[key] = window.appState.fixedSchedule[key];
+                        newSchedule[key] = window.appState.fixedSchedule[key];
                     }
                 }
                 window.appState.generatedSchedule = newSchedule;
+                
                 
                 if (!window.appState.teachers) { window.hideLoader(); return; }
                 // ค. คำนวณคาบพักเที่ยง
@@ -3327,9 +3329,19 @@ window.saveTeacher = () => {
                             let tRooms = window.extractRooms(t.rooms);
                             tRooms.forEach(room => {
                                 if(!data.students[room]) data.students[room] = {};
-                                data.students[room][`${d}_${p}`] = { ...entry, sRoom: room };
+                                
+                                // ป้องกันการเขียนทับกันเอง หากครูหลายคนเข้ากิจกรรมห้องเดียวกันพร้อมกัน
+                                if (data.students[room][`${d}_${p}`] && data.students[room][`${d}_${p}`].isActivity) {
+                                    let existingTName = data.students[room][`${d}_${p}`].tName;
+                                    if (!existingTName.includes(tName)) {
+                                        data.students[room][`${d}_${p}`].tName = existingTName + ", " + tName;
+                                    }
+                                } else {
+                                    data.students[room][`${d}_${p}`] = { ...entry, sRoom: room };
+                                }
                             });
                         }
+                    
                     } else if (sRoom) {
                         // 🌟 [แก้ไขบั๊ก Co-teaching และแยกห้องที่ +]
                         // ดึงห้องออกมาเป็น Array
