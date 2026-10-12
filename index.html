@@ -1712,14 +1712,13 @@ window.saveTeacher = () => {
                     if (window.appState.lockedTeachers[tName]) newSchedule[key] = window.appState.generatedSchedule[key];
                 }
                 
-                // ข. เอาคาบบังคับและกิจกรรมมาใส่ทับ (คาบบังคับถือเป็น Priority สูงสุด ทะลุการล็อก)
+                // ข. เอาคาบบังคับและกิจกรรมมาใส่ทับ (Priority สูงสุด ทะลุการล็อก และห้ามโดนย้าย)
                 if (window.appState.fixedSchedule) {
                     for (let key in window.appState.fixedSchedule) {
                         newSchedule[key] = window.appState.fixedSchedule[key];
                     }
                 }
                 window.appState.generatedSchedule = newSchedule;
-                
                 
                 if (!window.appState.teachers) { window.hideLoader(); return; }
                 // ค. คำนวณคาบพักเที่ยง
@@ -1758,13 +1757,13 @@ window.saveTeacher = () => {
                         }
                     }
                 });
+                
                 // ง. จัดกลุ่มวิชา คำนวณภาระงาน
                 let classGroups = {};
                 let teacherWorkloads = {};
                 let roomWorkloads = {}; 
                 const maxPeriodsPerRoom = (periodsCount - 1) * 5; 
                 
-                // สร้างตัวแปรห้องเรียนทั้งหมดเพื่อเตรียมนับคาบ
                 window.appState.teachers.forEach(t => {
                     const groupRooms = t.rooms ? t.rooms.split(',').map(r => r.trim()).filter(r => r) : [];
                     groupRooms.forEach(gr => { 
@@ -1901,10 +1900,8 @@ window.saveTeacher = () => {
                     return true;
                 };
                 
-                // 🌟 [แก้ไขบั๊กวิชาลงกระจุกตัววันเดียวกัน] ปรับแต่งฟังก์ชันเช็ควิชาซ้ำ
-                // หากห้องนั้นเรียนวิชานี้ (รหัสวิชาเดียวกัน) ไปแล้วในวันนั้น จะถือว่ามีวิชานี้แล้ว (เว้นแต่เป็นคาบว่างจำลอง)
                 const hasGroupToday = (schedule, group, d) => {
-                    if (group.isVirtualFree) return false; // คาบว่างให้นับแยกอิสระได้
+                    if (group.isVirtualFree) return false; 
                     
                     let targetRooms = window.extractRooms(group.room);
                     for (let p = 1; p <= periodsCount; p++) {
@@ -1912,14 +1909,12 @@ window.saveTeacher = () => {
                             if (k.endsWith(`_${d}_${p}`)) {
                                 let v = schedule[k];
                                 if (v && v.type === 'subject' && !v.isVirtualFree) {
-                                    // ตรวจสอบว่ารหัสวิชาตรงกันหรือไม่
                                     if (v.subjCode === group.subjCode || v.label === group.label) {
-                                        // ตรวจสอบว่าห้องตรงกันหรือไม่
                                         let rParts = v.label.split(' ');
                                         let existingRoomStr = rParts.length > 1 ? rParts[rParts.length - 1] : v.label;
                                         let existingRooms = window.extractRooms(existingRoomStr);
                                         for (let tr of targetRooms) {
-                                            if (existingRooms.includes(tr)) return true; // พบว่ามีเรียนแล้วในวันนี้
+                                            if (existingRooms.includes(tr)) return true; 
                                         }
                                     }
                                 }
@@ -1944,7 +1939,6 @@ window.saveTeacher = () => {
                     });
                     dayScores.sort((a, b) => b.score - a.score);
                     
-                    // รอบที่ 1: พยายามจัดแบบกระจายวัน
                     for (let ds of dayScores) {
                         if (placed) break;
                         let d = ds.day;
@@ -1966,7 +1960,6 @@ window.saveTeacher = () => {
                         }
                     }
                     
-                    // รอบที่ 2: พยายามขยับวิชาอื่น (Swap) ถ้ายังจัดไม่ได้
                     if (!placed && cls.length === 1 && !cls.isVirtualFree) {
                         for (let ds of dayScores) {
                             if (placed) break;
@@ -1987,7 +1980,11 @@ window.saveTeacher = () => {
                                     for (let k in window.appState.generatedSchedule) {
                                         if (k.endsWith(`_${d}_${p}`)) {
                                             let v = window.appState.generatedSchedule[k];
-                                            if (v.type === 'subject' && !window.appState.lockedTeachers[k.split('_')[0]]) {
+                                            
+                                            // 🌟 [หัวใจสำคัญ] ตรวจสอบว่าเป็นคาบบังคับหรือกิจกรรมหรือไม่ ถ้าใช่ "ห้ามแตะต้อง!"
+                                            let isFixed = window.appState.fixedSchedule && window.appState.fixedSchedule[k];
+                                            
+                                            if (v.type === 'subject' && !window.appState.lockedTeachers[k.split('_')[0]] && !isFixed) {
                                                 let rParts = v.label.split(' ');
                                                 let existingRoomStr = rParts.length > 1 ? rParts[rParts.length - 1] : v.label;
                                                 let existingRooms = window.extractRooms(existingRoomStr);
@@ -2009,7 +2006,6 @@ window.saveTeacher = () => {
                                         let moved = false;
                                         for(let altD = 0; altD < 5; altD++) {
                                             if(moved) break;
-                                            // เช็คว่าห้องเป้าหมายของคนที่จะโดนย้าย มีวิชานี้เรียนไปแล้วหรือยังในวันที่ altD
                                             let hasToday = false;
                                             for(let pTemp = 1; pTemp <= periodsCount; pTemp++) {
                                                 if(window.appState.generatedSchedule[`${occupants[0].tName}_${altD}_${pTemp}`]?.label === occupantLabel) hasToday = true;
@@ -2021,7 +2017,6 @@ window.saveTeacher = () => {
                                                 let checkRooms2 = window.extractRooms(cls.room);
                                                 if (checkRooms2.some(r => altP === getLunchPeriod(r))) newSlotValid = false;
                                                 
-                                                // ตรวจสอบว่าคนที่โดนเตะ สามารถไปลงห้องใหม่ได้ไหม
                                                 let occRoomParts = occupantLabel.split(' ');
                                                 let occRoomStr = occRoomParts.length > 1 ? occRoomParts[occRoomParts.length - 1] : occupantLabel;
                                                 if(!isRoomFree(window.appState.generatedSchedule, occRoomStr, altD, altP)) newSlotValid = false;
@@ -2050,7 +2045,6 @@ window.saveTeacher = () => {
                         }
                     }
                     
-                    // รอบสุดท้าย (Fallback): ถ้าทำทุกวิถีทางแล้วไม่ได้ ยอมยัดลงวันซ้ำได้ (แก้ปัญหาคาบเหลือ)
                     if (!placed) {
                         for(let d=0; d<5; d++){
                             for(let p=1; p <= periodsCount - cls.length + 1; p++){
@@ -2065,7 +2059,6 @@ window.saveTeacher = () => {
                                     if(!teachersFree) break;
                                 }
                                 if (teachersFree || cls.isVirtualFree) { 
-                                    // เพิ่มเช็คว่าห้องว่างจริงๆ ด้วย (เพราะ fallback เดิมลืมเช็คห้อง)
                                     let isThisSlotFree = true;
                                     for (let i = 0; i < cls.length; i++) {
                                         if (!isRoomFree(window.appState.generatedSchedule, cls.room, d, p+i)) isThisSlotFree = false;
