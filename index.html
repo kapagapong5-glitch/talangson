@@ -337,6 +337,11 @@
                                 <option value="3">3 ตาราง / แถว</option>
                             </select>
                         </div>
+                        <div class="flex items-center px-3 py-1.5 bg-white border border-gray-200 rounded-xl shadow-sm">
+                            <i class="fa-solid fa-magnifying-glass text-gray-400 mr-2"></i>
+                            <input type="text" id="searchStep4" list="listStep4" placeholder="พิมพ์ค้นหาครู..." class="border-0 focus:ring-0 text-sm p-0 w-28 sm:w-32 bg-transparent text-indigo-700 font-bold" onchange="searchAndScroll('teacher_card_', this.value); this.value='';">
+                            <datalist id="listStep4"></datalist>
+                        </div>
                         
                         <!-- กล่องตรวจคาบชน (ซ่อนตอนปกติ, แยกเป็นกล่องเดี่ยวๆ) -->
                         <div class="flex items-center space-x-1 hidden bg-red-50 border border-red-300 rounded-xl px-2 py-1 shadow-sm" id="conflictActionGroup">
@@ -424,6 +429,11 @@
                                 <option value="3">3 ตาราง / แถว</option>
                             </select>
                         </div>
+                        <div class="flex items-center space-x-2 border-l pl-3 border-gray-200">
+                            <i class="fa-solid fa-magnifying-glass text-gray-400"></i>
+                            <input type="text" id="searchStep5" list="listStep5" placeholder="ค้นหาครู..." class="border border-gray-300 rounded-md p-1.5 text-sm w-32 focus:ring-indigo-500 focus:border-indigo-500 bg-white font-bold text-indigo-700" onchange="searchAndScroll('room_card_', this.value); this.value='';">
+                            <datalist id="listStep5"></datalist>
+                        </div>
                         
                         <button onclick="resetStepData(5)" class="bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-200 px-3 py-1.5 rounded-lg text-sm font-semibold transition flex items-center shadow-sm">
                             <i class="fa-solid fa-trash-can"></i><span class="hidden sm:inline ml-2">ล้างจัดห้อง</span>
@@ -496,9 +506,15 @@
 
                     <!-- หน้าจอ Live Preview (ขวา) -->
                     <div class="w-full lg:w-2/3 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm overflow-x-auto min-h-[500px]">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="font-bold text-gray-800"><i class="fa-solid fa-eye text-blue-500 mr-2"></i>ตัวอย่างแบบร่าง (Live Preview)</h3>
-                            <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">แสดงตัวอย่างรายการแรก</span>
+                        <div class="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-3">
+                            <h3 class="font-bold text-gray-800 flex-shrink-0"><i class="fa-solid fa-eye text-blue-500 mr-2"></i>ตัวอย่างแบบร่าง (Live Preview)</h3>
+                            <div class="flex items-center space-x-1 w-full sm:w-auto bg-gray-50 p-1.5 rounded-lg border border-gray-200 shadow-sm">
+                                <button onclick="navigatePreview(-1)" class="p-1.5 px-3 bg-white hover:bg-gray-100 border border-gray-300 rounded-md text-gray-600 transition shadow-sm font-bold" title="ก่อนหน้า"><i class="fa-solid fa-chevron-left"></i></button>
+                                <select id="previewSelector" class="border border-gray-300 rounded-md p-1.5 text-sm w-full sm:w-48 focus:ring-indigo-500 focus:border-indigo-500 font-bold text-indigo-700" onchange="changePreviewItem()">
+                                    <!-- ตัวเลือกจะถูกสร้างด้วย JS -->
+                                </select>
+                                <button onclick="navigatePreview(1)" class="p-1.5 px-3 bg-white hover:bg-gray-100 border border-gray-300 rounded-md text-gray-600 transition shadow-sm font-bold" title="ถัดไป"><i class="fa-solid fa-chevron-right"></i></button>
+                            </div>
                         </div>
                         <div id="previewContainer" class="border border-dashed border-gray-300 p-4 rounded-xl flex justify-center bg-gray-50/50">
                             <!-- ตารางพรีวิวจะแสดงตรงนี้ -->
@@ -1159,7 +1175,7 @@ function updateUI() {
         } else if (currentStep === 3 && window.renderStep3Grid) {
             window.renderStep3Grid();
         } else if (currentStep === 4 && window.appState?.generatedSchedule && Object.keys(window.appState.generatedSchedule).length > 0) {
-            if (window.renderStep4Grid) window.renderStep4Grid();
+            if () ();
         } else if (currentStep === 5) {
             if (window.renderRoomSettings) window.renderRoomSettings();
             if (window.appState?.generatedSchedule && Object.keys(window.appState.generatedSchedule).length > 0 && window.renderStep5Grid) {
@@ -1366,7 +1382,7 @@ function goToStep(step) {
                     
                     // สั่งวาดหน้าจอ 3, 4, 5 ใหม่ให้ว่างเปล่า
                     if (step === 1 || step >= 3) { if (window.renderStep3Grid) window.renderStep3Grid(); }
-                    if (step === 1 || step >= 4) { if (window.renderStep4Grid) window.renderStep4Grid(); }
+                    if (step === 1 || step >= 4) { if () (); }
                     if (step === 1 || step >= 5) { if (window.renderStep5Grid) window.renderStep5Grid(); }
                     
                     window.hideLoader();
@@ -2008,7 +2024,7 @@ window.saveTeacher = () => {
                     }
                 }
                 
-                window.renderStep4Grid();
+                ();
                 window.autoSave();
                 window.hideLoader();
                 
@@ -2057,6 +2073,13 @@ window.saveTeacher = () => {
                 groupedTeachers[tName] = [{ name: tName }];
             }
         });
+
+        // 🌟 อัปเดตรายชื่อครูใส่ในช่องค้นหา Datalist ของหน้า 4
+        const l4 = document.getElementById('listStep4');
+        if(l4) { 
+            l4.innerHTML = ''; 
+            Object.keys(groupedTeachers).forEach(t => l4.innerHTML += `<option value="${t}">`); 
+        }
 
         Object.keys(groupedTeachers).forEach(teacherName => {
             let isLocked = window.appState.lockedTeachers[teacherName];
@@ -2962,6 +2985,13 @@ window.saveTeacher = () => {
 
             const weekDays = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'];
 
+            // 🌟 อัปเดตรายชื่อครูใส่ในช่องค้นหา Datalist ของหน้า 5
+            const l5 = document.getElementById('listStep5');
+            if(l5) { 
+                l5.innerHTML = ''; 
+                uniqueTeacherNames.forEach(t => l5.innerHTML += `<option value="${t}">`); 
+            }
+
             // วาดตารางของครูทุกคน
             uniqueTeacherNames.forEach(teacherName => {
                 let tableHTML = `
@@ -3097,9 +3127,29 @@ window.saveTeacher = () => {
         };
 
 
+    // --- ระบบค้นหาตาราง (Step 4 & 5) ---
+        window.searchAndScroll = (prefix, name) => {
+            if(!name) return;
+            const card = document.getElementById(`${prefix}${name}`);
+            if(card) {
+                // เลื่อนไปหากล่องนั้น
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // ทำให้กล่องเรืองแสงสีม่วงกระพริบเพื่อจุดโฟกัส
+                card.classList.add('shadow-[0_0_20px_rgba(79,70,229,0.6)]', 'scale-[1.02]', 'border-indigo-500', 'z-10');
+                setTimeout(() => {
+                    card.classList.remove('shadow-[0_0_20px_rgba(79,70,229,0.6)]', 'scale-[1.02]', 'border-indigo-500', 'z-10');
+                }, 2000);
+            } else {
+                showAppAlert('ไม่พบข้อมูล', `ไม่พบตารางของ "${name}" กรุณาลองตรวจสอบการสะกดอีกครั้งครับ`, 'warning');
+            }
+        };
+
     // --- ระบบดาวน์โหลด & Live Preview (Step 6) ---
         
         let currentExportTab = 'teacher';
+        let currentPreviewIndex = 0; // ตัวแปรเก็บหน้าที่กำลังดู
+        window.previewItemsList = []; // ลิสต์รายชื่อ/ห้องในพรีวิว
+        
         // สกัดเฉพาะชื่อจริงครู (ตัดคำนำหน้าและนามสกุล)
         window.getShortTeacherName = (fullName) => {
             if(!fullName) return "";
@@ -3113,9 +3163,11 @@ window.saveTeacher = () => {
             }
             return name.split(' ')[0]; // เอาเฉพาะคำแรกก่อนเว้นวรรค
         };
+
         // สลับแท็บระบบดาวน์โหลด
         window.switchExportTab = (tab) => {
             currentExportTab = tab;
+            currentPreviewIndex = 0; // รีเซตหน้าพรีวิวเมื่อเปลี่ยนแท็บ
             ['teacher', 'student', 'room'].forEach(t => {
                 const btn = document.getElementById(`tabBtn-${t}`);
                 if(t === tab) {
@@ -3153,8 +3205,28 @@ window.saveTeacher = () => {
                     <label class="flex items-center space-x-2"><input type="checkbox" id="chkStudentRoom" checked onchange="renderLivePreview()" class="rounded text-indigo-600"><span>แสดงห้องนักเรียนที่มาเรียน</span></label>
                 `;
             }
-            renderLivePreview();
+            renderLivePreview(true);
         };
+
+        // ระบบปุ่มลูกศรเปลี่ยนหน้า Preview
+        window.navigatePreview = (dir) => {
+            if(window.previewItemsList.length === 0) return;
+            currentPreviewIndex += dir;
+            // วนลูปหน้าแรก-หน้าสุดท้าย
+            if (currentPreviewIndex < 0) currentPreviewIndex = window.previewItemsList.length - 1;
+            if (currentPreviewIndex >= window.previewItemsList.length) currentPreviewIndex = 0;
+            
+            document.getElementById('previewSelector').selectedIndex = currentPreviewIndex;
+            renderLivePreview(false); // เรียกวาดตารางใหม่ (แบบไม่ต้องอัปเดตลิสต์ dropdown ใหม่)
+        };
+
+        // ระบบเมื่อพิมพ์ค้นหา/เลือกชื่อใน Dropdown ของหน้า Preview
+        window.changePreviewItem = () => {
+            currentPreviewIndex = document.getElementById('previewSelector').selectedIndex;
+            renderLivePreview(false);
+        };
+
+        
         // แปลงข้อมูลเพื่อสร้างตาราง
         window.buildExportData = () => {
             const data = { teachers: {}, students: {}, rooms: {} };
