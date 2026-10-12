@@ -705,11 +705,12 @@
                             </select>
                         </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">ห้องที่สอน (คั่นด้วยลูกน้ำ)</label>
-                        <input type="text" id="tRooms" class="mt-1 block w-full border border-gray-300 rounded p-2 focus:border-blue-500 focus:ring-blue-500" placeholder="เช่น ป.3/1, ป.3/2">
+                   <div>
+                        <label class="block text-sm font-medium text-gray-700">ห้องที่สอน (คั่นด้วยลูกน้ำ , หรือรวมห้องด้วย +)</label>
+                        <input type="text" id="tRooms" class="mt-1 block w-full border border-gray-300 rounded p-2 focus:border-blue-500 focus:ring-blue-500" placeholder="เช่น ป.1+ป.2, ป.3">
                     </div>
                     <p class="text-xs text-blue-600 mt-2">* หากครู 1 คนสอนหลายวิชา ให้กดเพิ่มครูคนเดิมแต่เปลี่ยนชื่อวิชาได้เลย</p>
+                    <p class="text-xs text-purple-600 mt-1">* <b>สอนรวมห้อง:</b> ใช้เครื่องหมาย <b>+</b> เชื่อมห้อง เช่น <b>ป.1+ป.2</b> (ระบบจะจัดลงคาบเดียวกัน)</p>
                 </div>
                 
                 <div class="mt-6 flex justify-end space-x-3">
@@ -1108,7 +1109,11 @@ window.formatMergedRoom = (str) => {
     return str.includes('+') ? `(${str.split('+').map(x=>x.trim()).join(')(')})` : str;
 };
 const formatMergedRoom = window.formatMergedRoom;
-
+// ฟังก์ชันแยกห้องเรียนที่ใช้เครื่องหมาย +
+window.extractRooms = (roomStr) => {
+    if (!roomStr) return [];
+    return roomStr.split('+').map(r => r.trim()).filter(r => r !== "");
+};
 window.showLoader = () => {
     const loader = document.getElementById('pageLoader');
     loader.classList.remove('hidden');
@@ -1502,6 +1507,7 @@ window.downloadTemplate = () => {
         ["ชื่อครู", "วิชา (ย่อไม่เกิน 8 ตัว)", "รหัสวิชา", "หน่วยกิต", "ห้องที่สอน (คั่นด้วยลูกน้ำ)", "รูปแบบการสอน (ใส่เลข 1, 2, 3 หรือ 4)"],
         ["นายสมชาย เรียนดี", "คณิต", "ค23101", 1.5, "ม.3/1, ม.3/2, ม.3/3", "1"],
         ["นางสาวสมหญิง รักไทย", "วิทย์", "ว23101", 1.0, "ม.3/1, ม.3/2", "2"],
+        ["ครูพละ", "สุขศึกษา", "พ23101", 1.0, "ป.1+ป.2, ป.3", "1"], // ตัวอย่างใช้ + สอนรวมห้อง
         ["ครูต่างชาติ", "อังกฤษ", "อ23101", 1.5, "ม.3/1", "1"] // ตัวอย่างสอนร่วม (รหัสวิชาและห้องตรงกัน)
     ];
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
@@ -1757,8 +1763,11 @@ window.saveTeacher = () => {
                 
                 // สร้างตัวแปรห้องเรียนทั้งหมดเพื่อเตรียมนับคาบ
                 window.appState.teachers.forEach(t => {
-                    const rooms = t.rooms ? t.rooms.split(',').map(r => r.trim()).filter(r => r) : [];
-                    rooms.forEach(r => { if (roomWorkloads[r] === undefined) roomWorkloads[r] = 0; });
+                    const groupRooms = t.rooms ? t.rooms.split(',').map(r => r.trim()).filter(r => r) : [];
+                    groupRooms.forEach(gr => { 
+                        let subRooms = window.extractRooms(gr);
+                        subRooms.forEach(r => { if (roomWorkloads[r] === undefined) roomWorkloads[r] = 0; });
+                    });
                 });
 
                 window.appState.teachers.forEach(t => {
@@ -1779,7 +1788,8 @@ window.saveTeacher = () => {
                                 label: `${t.subjName} ${room}`, isLocked: false
                             };
                             // 🌟 แก้บั๊ก 1: บวกคาบวิชาปกติให้ห้องเรียน แค่ 1 ครั้ง ป้องกันบวกซ้ำจาก Co-teaching
-                            roomWorkloads[room] += limit; 
+                            let subRooms = window.extractRooms(room);
+                            subRooms.forEach(sr => { roomWorkloads[sr] += limit; });
                         }
                         if (!classGroups[groupKey].teachers.includes(t.name)) {
                             classGroups[groupKey].teachers.push(t.name);
@@ -1854,6 +1864,7 @@ window.saveTeacher = () => {
                 });
 
                 const isRoomFree = (schedule, room, d, p) => {
+                    let targetRooms = window.extractRooms(room);
                     for (let k in schedule) {
                         if (k.endsWith(`_${d}_${p}`)) {
                             let v = schedule[k];
@@ -1861,10 +1872,18 @@ window.saveTeacher = () => {
                                 if (v.isActivity) {
                                     let tName = k.split('_')[0];
                                     let tObj = window.appState.teachers.find(t => t.name === tName);
-                                    if (tObj && tObj.rooms && tObj.rooms.includes(room)) return false;
+                                    if (tObj && tObj.rooms) {
+                                        for (let tr of targetRooms) {
+                                            if (tObj.rooms.includes(tr)) return false;
+                                        }
+                                    }
                                 } else {
                                     let rParts = v.label.split(' ');
-                                    if ((rParts.length > 1 ? rParts[rParts.length - 1] : v.label) === room) return false;
+                                    let existingRoomStr = rParts.length > 1 ? rParts[rParts.length - 1] : v.label;
+                                    let existingRooms = window.extractRooms(existingRoomStr);
+                                    for (let tr of targetRooms) {
+                                        if (existingRooms.includes(tr)) return false;
+                                    }
                                 }
                             }
                         }
@@ -1880,7 +1899,8 @@ window.saveTeacher = () => {
                         let p = startP + i;
                         
                         // 🌟 ป้องกันไม่ให้จัดวิชาเรียน หรือ คาบว่าง ไปทับใน "เวลาพักเที่ยงของนักเรียน" เด็ดขาด
-                        if (p === getLunchPeriod(group.room)) return false;
+                        let checkRooms1 = window.extractRooms(group.room);
+                        if (checkRooms1.some(r => p === getLunchPeriod(r))) return false;
                         
                         if (!isRoomFree(schedule, group.room, d, p)) return false;
                         if (!group.isVirtualFree) { 
@@ -1974,7 +1994,8 @@ window.saveTeacher = () => {
                                             for(let altP = 1; altP <= periodsCount; altP++) {
                                                 let newSlotValid = true;
                                                 // ไม่ทับพักเที่ยง
-                                                if (altP === getLunchPeriod(cls.room)) newSlotValid = false;
+                                                let checkRooms2 = window.extractRooms(cls.room);
+                                                if (checkRooms2.some(r => altP === getLunchPeriod(r))) newSlotValid = false;
                                                 
                                                 if(!isRoomFree(window.appState.generatedSchedule, cls.room, altD, altP)) newSlotValid = false;
                                                 for(let occ of occupants) {
@@ -2005,7 +2026,8 @@ window.saveTeacher = () => {
                         for(let d=0; d<5; d++){
                             for(let p=1; p <= periodsCount - cls.length + 1; p++){
                                 // เลี่ยงพักเที่ยงเสมอ
-                                if (p === getLunchPeriod(cls.room)) continue;
+                                let checkRooms3 = window.extractRooms(cls.room);
+                                if (checkRooms3.some(r => p === getLunchPeriod(r))) continue;
                                 
                                 let teachersFree = true;
                                 for (let i = 0; i < cls.length; i++) {
@@ -2307,19 +2329,22 @@ window.saveTeacher = () => {
                                 let tObj = window.appState.teachers.find(t => t.name === tName);
                                 let subjCode = v.subjCode ? v.subjCode : (tObj ? tObj.subjCode : '');
                                 
-                                if (roomsInPeriod[room]) {
-                                    // 🌟 กฎการสอนร่วม: ถ้าชื่อวิชาเป๊ะ หรือ รหัสวิชาเป๊ะ ถือว่าสอนร่วม (ไม่ชน)
-                                    if (roomsInPeriod[room].label === v.label || (roomsInPeriod[room].subjCode === subjCode && subjCode !== '')) {
-                                        continue;
+                                let subRooms = window.extractRooms(room);
+                                subRooms.forEach(sr => {
+                                    if (roomsInPeriod[sr]) {
+                                        // 🌟 กฎการสอนร่วม: ถ้าชื่อวิชาเป๊ะ หรือ รหัสวิชาเป๊ะ ถือว่าสอนร่วม (ไม่ชน)
+                                        if (roomsInPeriod[sr].label === v.label || (roomsInPeriod[sr].subjCode === subjCode && subjCode !== '')) {
+                                            return;
+                                        }
+                                        
+                                        let cell1 = document.getElementById(`cell_${key}`);
+                                        let cell2 = document.getElementById(`cell_${roomsInPeriod[sr].key}`);
+                                        if(cell1) { cell1.classList.add('conflict-highlight'); if(!conflictCellsList.includes(cell1)) conflictCellsList.push(cell1); }
+                                        if(cell2) { cell2.classList.add('conflict-highlight'); if(!conflictCellsList.includes(cell2)) conflictCellsList.push(cell2); }
+                                    } else {
+                                        roomsInPeriod[sr] = { key: key, subjCode: subjCode, label: v.label };
                                     }
-                                    
-                                    let cell1 = document.getElementById(`cell_${key}`);
-                                    let cell2 = document.getElementById(`cell_${roomsInPeriod[room].key}`);
-                                    if(cell1) { cell1.classList.add('conflict-highlight'); if(!conflictCellsList.includes(cell1)) conflictCellsList.push(cell1); }
-                                    if(cell2) { cell2.classList.add('conflict-highlight'); if(!conflictCellsList.includes(cell2)) conflictCellsList.push(cell2); }
-                                } else {
-                                    roomsInPeriod[room] = { key: key, subjCode: subjCode, label: v.label };
-                                }
+                                });
                             }
                         }
                     }
@@ -3272,13 +3297,16 @@ window.saveTeacher = () => {
                             });
                         }
                     } else if (sRoom) {
-                        if(!data.students[sRoom]) data.students[sRoom] = {};
-                        // 🌟 ดักจับการสอนร่วม (Co-teaching)
-                        if(data.students[sRoom][`${d}_${p}`]) {
-                            data.students[sRoom][`${d}_${p}`].tName = "สอนร่วม";
-                        } else {
-                            data.students[sRoom][`${d}_${p}`] = { ...entry };
-                        }
+                        let subRooms = window.extractRooms(sRoom);
+                        subRooms.forEach(sr => {
+                            if(!data.students[sr]) data.students[sr] = {};
+                            // 🌟 ดักจับการสอนร่วม (Co-teaching)
+                            if(data.students[sr][`${d}_${p}`]) {
+                                data.students[sr][`${d}_${p}`].tName = "สอนร่วม";
+                            } else {
+                                data.students[sr][`${d}_${p}`] = { ...entry, sRoom: sr }; // เปลี่ยนชื่อห้องที่แสดงเป็นห้องย่อย
+                            }
+                        });
                     }
                     
                     // 3. ตารางห้องเรียน
