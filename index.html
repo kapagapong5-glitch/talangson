@@ -768,22 +768,42 @@
                     <i class="fa-solid fa-times text-xl"></i>
                 </button>
                 
+                <!-- Modal กำหนดคาบกิจกรรม / คาบส่วนกลาง (ยืดหยุ่น เลือกระดับชั้น/ห้อง และครูผู้สอนได้) -->
+        <div id="batchActivityModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 relative max-h-[95vh] flex flex-col my-auto">
+                <button class="absolute top-4 right-4 text-gray-400 hover:text-gray-600" onclick="closeBatchActivityModal()">
+                    <i class="fa-solid fa-times text-xl"></i>
+                </button>
+                
                 <h3 class="text-xl font-bold text-gray-800 mb-1 flex items-center">
                     <i class="fa-solid fa-calendar-check text-indigo-600 mr-2"></i>กำหนดคาบกิจกรรม / คาบส่วนกลาง
                 </h3>
-                <p class="text-xs text-gray-500 mb-4">กำหนดกิจกรรมที่จัดพร้อมกันหลายคน เช่น เข้าแถวหน้าเสาธง, แนะแนวรวม, โฮมรูม</p>
+                <p class="text-xs text-gray-500 mb-4">กำหนดกิจกรรมที่จัดพร้อมกัน เช่น ลูกเสือ, เนตรนารี, โฮมรูม หรือประชุมครู (เลือกเฉพาะห้องและครูที่เกี่ยวข้องได้)</p>
                 
                 <div class="space-y-4 overflow-y-auto pr-1 flex-grow">
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อกิจกรรม / คาบเรียน</label>
-                        <input type="text" id="batchActivityName" class="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-indigo-500 focus:border-indigo-500" placeholder="เช่น กิจกรรมหน้าเสาธง, โฮมรูม, สวดมนต์">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อกิจกรรม / วิชา</label>
+                            <input type="text" id="batchActivityName" class="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-indigo-500 focus:border-indigo-500 text-sm" placeholder="เช่น ลูกเสือ, แนะแนว">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1">สถานที่ (เว้นว่างได้)</label>
+                            <input type="text" id="batchActivityRoom" class="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-indigo-500 focus:border-indigo-500 text-sm" placeholder="เช่น ลานกิจกรรม, หอประชุม">
+                        </div>
                     </div>
-                    <!-- เริ่มส่วนที่เพิ่มใหม่: ช่องสถานที่เรียน -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">สถานที่ (เว้นว่างได้)</label>
-                        <input type="text" id="batchActivityRoom" class="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-indigo-500 focus:border-indigo-500" placeholder="เช่น ลานกิจกรรม, หอประชุม, โดม">
+                    
+                    <!-- ส่วนเลือกห้องเรียน/ระดับชั้นแบบยืดหยุ่น -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label class="text-sm font-semibold text-gray-700">เลือกห้องเรียนที่เข้าร่วมกิจกรรม</label>
+                            <label class="text-xs text-indigo-600 font-medium cursor-pointer hover:underline">
+                                <input type="checkbox" id="checkAllRooms" onchange="toggleAllBatchRooms(this)" class="rounded text-indigo-600 mr-1">เลือกทุกห้องทุกชั้น
+                            </label>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 max-h-36 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm" id="batchRoomsContainer">
+                            <!-- จะถูกสร้างอัตโนมัติด้วย JS ตามระดับชั้นที่ตั้งไว้ในขั้นที่ 1 -->
+                        </div>
                     </div>
-                    <!-- จบส่วนที่เพิ่มใหม่ -->
 
                     <div>
                         <div class="flex justify-between items-center mb-1.5">
@@ -800,7 +820,6 @@
                             <label class="flex items-center space-x-1.5 cursor-pointer"><input type="checkbox" value="4" class="batch-day-check rounded text-indigo-600"><span>ศุกร์</span></label>
                         </div>
                     </div>
-
                     <div>
                         <div class="flex justify-between items-center mb-1.5">
                             <label class="text-sm font-semibold text-gray-700">เลือกคาบเรียน</label>
@@ -808,10 +827,8 @@
                                 <input type="checkbox" id="checkAllPeriods" onchange="toggleAllBatchPeriods(this)" class="rounded text-indigo-600 mr-1">เลือกทุกคาบ
                             </label>
                         </div>
-                        <div class="grid grid-cols-4 sm:grid-cols-5 gap-2 bg-gray-50 p-2.5 rounded-lg border border-gray-200 text-sm max-h-32 overflow-y-auto" id="batchPeriodsContainer">
-                            </div>
+                        <div class="grid grid-cols-4 sm:grid-cols-5 gap-2 bg-gray-50 p-2.5 rounded-lg border border-gray-200 text-sm max-h-32 overflow-y-auto" id="batchPeriodsContainer"></div>
                     </div>
-
                     <div>
                         <div class="flex justify-between items-center mb-1.5">
                             <label class="text-sm font-semibold text-gray-700">เลือกครูผู้สอนที่เข้าร่วม</label>
@@ -819,11 +836,9 @@
                                 <input type="checkbox" id="checkAllTeachers" onchange="toggleAllBatchTeachers(this)" class="rounded text-indigo-600 mr-1">เลือกครูทุกคน
                             </label>
                         </div>
-                        <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-200 max-h-40 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm" id="batchTeachersContainer">
-                            </div>
+                        <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-200 max-h-40 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm" id="batchTeachersContainer"></div>
                     </div>
                 </div>
-
                 <div class="mt-5 pt-3 border-t border-gray-200 flex justify-end space-x-3">
                     <button onclick="closeBatchActivityModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition text-sm font-medium">ยกเลิก</button>
                     <button onclick="applyBatchActivity()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition text-sm font-bold flex items-center">
@@ -1242,35 +1257,38 @@ function goToStep(step) {
             
             if (window.appState && window.appState.gradeLevels) {
                 window.appState.gradeLevels.forEach(grade => {
-                    const r = parseInt(grade.rooms) || 0;
-                    totalRooms += r;
-                    totalPeriodsRequired += (r * weeklyPeriods);
+                    let rCount = parseInt(grade.rooms) || 0;
+                    totalRooms += rCount;
+                    totalPeriodsRequired += (rCount * weeklyPeriods);
                 });
             }
 
+            // คำนวณคาบที่ถูกจัดแล้วจากวิชาปกติ
+            let totalAssignedPeriods = 0;
             let uniqueClasses = {};
             if (window.appState && window.appState.teachers) {
                 window.appState.teachers.forEach(t => {
                     const credit = parseFloat(t.credit) || 0;
                     const periods = credit * 2; 
-                    const rooms = t.rooms ? t.rooms.split(',').map(r => r.trim()).filter(r => r !== "") : [];
+                    const groupRooms = t.rooms ? t.rooms.split(',').map(r => r.trim()).filter(r => r) : [];
                     const subjCode = t.subjCode || 'NO_CODE';
                     const subjName = t.subjName || 'NO_NAME';
                     
-                    rooms.forEach(room => {
-                        const groupKey = `${subjCode}_${subjName}_${room}`;
+                    groupRooms.forEach(gr => {
+                        const groupKey = `${subjCode}_${subjName}_${gr}`;
                         if (!uniqueClasses[groupKey]) {
-                            uniqueClasses[groupKey] = periods;
+                            // นับจำนวนห้องย่อยที่อยู่ภายใต้เครื่องหมาย +
+                            let subRoomsCount = window.extractRooms(gr).length || 1;
+                            uniqueClasses[groupKey] = periods * subRoomsCount;
                         }
                     });
                 });
             }
-            
-            let totalAssignedPeriods = 0;
             for (let key in uniqueClasses) {
                 totalAssignedPeriods += uniqueClasses[key];
             }
 
+            // คำนวณคาบที่ถูกจัดแล้วจากคาบกิจกรรม (Fixed Schedule Activities)
             let uniqueActivities = {};
             if (window.appState && window.appState.fixedSchedule) {
                 for (let key in window.appState.fixedSchedule) {
@@ -1278,17 +1296,26 @@ function goToStep(step) {
                     if (data && data.isActivity) {
                         let parts = key.split('_'); 
                         let actKey = `${parts[1]}_${parts[2]}_${data.label}`;
-                        uniqueActivities[actKey] = true;
+                        if (!uniqueActivities[actKey]) {
+                            // แกะดูว่ากิจกรรมนี้ระบุห้องอะไรไว้บ้าง
+                            let matchRooms = data.label.match(/([ก-ฮa-zA-Z0-9\.\/+\s]+)$/);
+                            let roomPart = matchRooms ? matchRooms[1].trim() : "";
+                            let subRooms = window.extractRooms(roomPart);
+                            
+                            // ถ้ามีระบุห้องเฉพาะเจาะจง ให้บวกเฉพาะห้องนั้น แต่ถ้าไม่มีห้อง (เช่น ประชุมครู) ไม่ต้องหักโควตาเด็ก
+                            let count = subRooms.length > 0 ? subRooms.length : 0;
+                            uniqueActivities[actKey] = count;
+                        }
                     }
                 }
             }
-            
-            let activityPeriods = Object.keys(uniqueActivities).length * totalRooms;
+            let activityPeriods = 0;
+            for (let actKey in uniqueActivities) {
+                activityPeriods += uniqueActivities[actKey];
+            }
             totalAssignedPeriods += activityPeriods;
 
-            // 🌟 ปล่อยให้ยอดติดลบได้ เพื่อนำไปสร้างสถานะคาบเกิน!
             let remainingPeriods = totalPeriodsRequired - totalAssignedPeriods;
-
             if(document.getElementById('statTotal')) document.getElementById('statTotal').innerText = totalPeriodsRequired;
             if(document.getElementById('statAssigned')) document.getElementById('statAssigned').innerText = totalAssignedPeriods;
             
@@ -1299,21 +1326,18 @@ function goToStep(step) {
                 const sub3 = box3Parent.querySelector('span.text-xs');
                 
                 if (remainingPeriods < 0) {
-                    // กรณีคาบเกินโควตา
                     statRemaining.innerText = Math.abs(remainingPeriods);
                     statRemaining.className = "text-4xl font-extrabold text-red-700 mt-1";
                     box3Parent.className = "bg-red-50 p-4 rounded-xl border border-red-300 shadow-sm flex flex-col items-center justify-center transition hover:shadow-md relative overflow-hidden";
                     if(title3) { title3.className = "text-sm text-red-600 font-bold mb-1"; title3.innerText = "3. จำนวนคาบเกิน!"; }
                     if(sub3) { sub3.className = "text-xs text-red-500 mb-1 font-semibold"; sub3.innerText = "(นักเรียนเรียนเกินโควตา)"; }
                 } else if (remainingPeriods === 0) {
-                    // กรณีพอดี
                     statRemaining.innerText = remainingPeriods;
                     statRemaining.className = "text-4xl font-extrabold text-green-700 mt-1";
                     box3Parent.className = "bg-green-50 p-4 rounded-xl border border-green-300 shadow-sm flex flex-col items-center justify-center transition hover:shadow-md relative overflow-hidden";
                     if(title3) { title3.className = "text-sm text-green-600 font-bold mb-1"; title3.innerText = "3. จำนวนคาบที่เหลือ"; }
                     if(sub3) { sub3.className = "text-xs text-green-500 mb-1"; sub3.innerText = "(จัดตารางครบพอดี)"; }
                 } else {
-                    // กรณีคาบเหลือ
                     statRemaining.innerText = remainingPeriods;
                     statRemaining.className = "text-4xl font-extrabold text-orange-800 mt-1";
                     box3Parent.className = "bg-orange-50 p-4 rounded-xl border border-orange-200 shadow-sm flex flex-col items-center justify-center transition hover:shadow-md relative overflow-hidden";
@@ -1326,13 +1350,11 @@ function goToStep(step) {
             if(navDisplay) {
                 const navParent = navDisplay.parentElement;
                 if (remainingPeriods < 0) {
-                    // เปลี่ยน Navbar ด้านบนให้เป็นป้ายสีแดงกระพริบ
                     navParent.innerHTML = `⚠️ <span class="text-white mr-1">สถานะ:</span> คาบเกิน <span id="remainingPeriodsDisplay" class="text-white text-lg font-bold bg-red-600 px-2 rounded ml-1 shadow-inner">${Math.abs(remainingPeriods)}</span>`;
                     navParent.classList.replace('bg-blue-800', 'bg-red-700');
                     navParent.classList.replace('border-blue-600', 'border-red-500');
                     navParent.classList.add('animate-pulse');
                 } else {
-                    // กลับเป็นสีน้ำเงินปกติ
                     navParent.innerHTML = `คาบสอนคงเหลือ: <span id="remainingPeriodsDisplay" class="text-yellow-300 text-lg font-bold">${remainingPeriods}</span>`;
                     navParent.classList.replace('bg-red-700', 'bg-blue-800');
                     navParent.classList.replace('border-red-500', 'border-blue-600');
@@ -2474,23 +2496,49 @@ window.saveTeacher = () => {
 
 
         // --- ระบบกำหนดคาบบังคับ / คาบว่าง (Step 3) ---
-        // --- ระบบกำหนดคาบกิจกรรม / คาบส่วนกลาง (Batch Activity) ---
+        // ฟังก์ชันแยกห้องเรียนที่ใช้เครื่องหมาย + และลูกน้ำ ,
+        window.extractRooms = (roomStr) => {
+            if (!roomStr) return [];
+            return roomStr.split(/[,+]/).map(r => r.trim()).filter(r => r !== "");
+        };
 
         window.openBatchActivityModal = () => {
             if (!window.appState.teachers || window.appState.teachers.length === 0) {
-                showAppAlert('แจ้งเตือน', 'กรุณาเพิ่มข้อมูลครูผู้สอนที่ขั้นที่ 2 ก่อนครับ', 'warning');
+                showAppAlert('แจ้งเตือน', 'กรุณาเพิ่มข้อมูลครูผู้สอนในขั้นที่ 2 ก่อนครับ', 'warning');
                 return;
             }
-
             document.getElementById('batchActivityName').value = '';
+            document.getElementById('batchActivityRoom').value = '';
+            document.getElementById('checkAllRooms').checked = false;
             document.getElementById('checkAllDays').checked = false;
             document.getElementById('checkAllPeriods').checked = false;
             document.getElementById('checkAllTeachers').checked = false;
 
-            // รีเซ็ตวัน
-            document.querySelectorAll('.batch-day-check').forEach(cb => cb.checked = false);
+            // 1. สร้าง Checkbox ห้องเรียนจาก gradeLevels ในขั้นที่ 1
+            const rContainer = document.getElementById('batchRoomsContainer');
+            rContainer.innerHTML = '';
+            let allClassRooms = [];
+            if (window.appState.gradeLevels) {
+                window.appState.gradeLevels.forEach(g => {
+                    let roomCount = parseInt(g.rooms) || 0;
+                    for (let i = 1; i <= roomCount; i++) {
+                        let rName = `${g.name}/${i}`;
+                        allClassRooms.push(rName);
+                        rContainer.innerHTML += `
+                            <label class="flex items-center space-x-1.5 cursor-pointer p-1 rounded hover:bg-white transition">
+                                <input type="checkbox" value="${rName}" class="batch-room-check rounded text-indigo-600">
+                                <span class="truncate">${rName}</span>
+                            </label>
+                        `;
+                    }
+                });
+            }
+            if (allClassRooms.length === 0) {
+                rContainer.innerHTML = `<span class="text-xs text-red-500 col-span-full">ยังไม่ได้กำหนดห้องเรียนในขั้นที่ 1 กรุณากลับไปเพิ่มระดับชั้นก่อน</span>`;
+            }
 
-            // สร้าง Checkbox คาบเรียนตามจำนวนคาบที่มีอยู่จริง
+            document.querySelectorAll('.batch-day-check').forEach(cb => cb.checked = false);
+            
             const pCount = parseInt(window.appState.config?.periods) || 9;
             const pContainer = document.getElementById('batchPeriodsContainer');
             pContainer.innerHTML = '';
@@ -2502,8 +2550,7 @@ window.saveTeacher = () => {
                     </label>
                 `;
             }
-
-            // สร้าง Checkbox รายชื่อครู (ไม่ซ้ำชื่อ)
+            
             const tContainer = document.getElementById('batchTeachersContainer');
             tContainer.innerHTML = '';
             const uniqueTeacherNames = [...new Set(window.appState.teachers.map(t => t.name))];
@@ -2515,45 +2562,39 @@ window.saveTeacher = () => {
                     </label>
                 `;
             });
-
             document.getElementById('batchActivityModal').classList.remove('hidden');
         };
-
         window.closeBatchActivityModal = () => {
             document.getElementById('batchActivityModal').classList.add('hidden');
         };
-
-        // ฟังก์ชันติ๊กเลือกทั้งหมด / ยกเลิกทั้งหมด
+        window.toggleAllBatchRooms = (master) => {
+            document.querySelectorAll('.batch-room-check').forEach(cb => cb.checked = master.checked);
+        };
         window.toggleAllBatchDays = (master) => {
             document.querySelectorAll('.batch-day-check').forEach(cb => cb.checked = master.checked);
         };
-
         window.toggleAllBatchPeriods = (master) => {
             document.querySelectorAll('.batch-period-check').forEach(cb => cb.checked = master.checked);
         };
-
         window.toggleAllBatchTeachers = (master) => {
             document.querySelectorAll('.batch-teacher-check').forEach(cb => cb.checked = master.checked);
         };
-
-        // ฟังก์ชันสั่งลงตาราง
         window.applyBatchActivity = () => {
             const actName = document.getElementById('batchActivityName').value.trim();
-            const actRoom = document.getElementById('batchActivityRoom').value.trim(); // เพิ่มบรรทัดนี้
+            const actRoom = document.getElementById('batchActivityRoom').value.trim(); 
             if (!actName) {
                 showAppAlert('กรุณาระบุข้อมูล', 'กรุณากรอกชื่อกิจกรรม / คาบเรียน', 'warning');
                 return;
             }
+            const selectedRooms = [];
+            document.querySelectorAll('.batch-room-check:checked').forEach(cb => selectedRooms.push(cb.value));
 
-            // ดึงวันที่เลือก
             const selectedDays = [];
             document.querySelectorAll('.batch-day-check:checked').forEach(cb => selectedDays.push(parseInt(cb.value)));
 
-            // ดึงคาบที่เลือก
             const selectedPeriods = [];
             document.querySelectorAll('.batch-period-check:checked').forEach(cb => selectedPeriods.push(parseInt(cb.value)));
 
-            // ดึงครูที่เลือก
             const selectedTeachers = [];
             document.querySelectorAll('.batch-teacher-check:checked').forEach(cb => selectedTeachers.push(cb.value));
 
@@ -2570,17 +2611,19 @@ window.saveTeacher = () => {
                 return;
             }
 
-            if (!window.appState.fixedSchedule) window.appState.fixedSchedule = {};
+            // รวมห้องที่เลือกด้วยเครื่องหมาย + (เช่น ม.1/1+ม.1/2)
+            const combinedRoomStr = selectedRooms.join('+');
+            const displayLabel = combinedRoomStr ? `${actName} ${combinedRoomStr}` : actName;
 
+            if (!window.appState.fixedSchedule) window.appState.fixedSchedule = {};
             let countAssigned = 0;
             selectedTeachers.forEach(tName => {
                 selectedDays.forEach(d => {
                     selectedPeriods.forEach(p => {
                         const key = `${tName}_${d}_${p}`;
-                        // บันทึกเป็น subject พิเศษที่มีธง isActivity: true
                         window.appState.fixedSchedule[key] = {
                             type: 'subject',
-                            label: actName,
+                            label: displayLabel,
                             isActivity: true,
                             room: actRoom
                         };
@@ -2588,7 +2631,6 @@ window.saveTeacher = () => {
                     });
                 });
             });
-
             closeBatchActivityModal();
             renderStep3Grid();
             window.autoSave();
