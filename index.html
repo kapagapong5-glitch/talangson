@@ -1102,6 +1102,13 @@
 let currentStep = 1;
 const totalSteps = 8;
 
+// 🌟 ฟังก์ชันจัดรูปแบบห้องเรียนเวลาสอนร่วม (แปลง + เป็นวงเล็บ)
+window.formatMergedRoom = (str) => {
+    if (!str) return "";
+    return str.includes('+') ? `(${str.split('+').map(x=>x.trim()).join(')(')})` : str;
+};
+const formatMergedRoom = window.formatMergedRoom;
+
 window.showLoader = () => {
     const loader = document.getElementById('pageLoader');
     loader.classList.remove('hidden');
@@ -2024,7 +2031,7 @@ window.saveTeacher = () => {
                     }
                 }
                 
-                ();
+                if (window.renderStep4Grid) window.renderStep4Grid();
                 window.autoSave();
                 window.hideLoader();
                 
