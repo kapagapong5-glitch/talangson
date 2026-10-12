@@ -1109,10 +1109,11 @@ window.formatMergedRoom = (str) => {
     return str.includes('+') ? `(${str.split('+').map(x=>x.trim()).join(')(')})` : str;
 };
 const formatMergedRoom = window.formatMergedRoom;
-// ฟังก์ชันแยกห้องเรียนที่ใช้เครื่องหมาย +
+// ฟังก์ชันแยกห้องเรียนที่ใช้เครื่องหมาย + และลูกน้ำ ,
 window.extractRooms = (roomStr) => {
     if (!roomStr) return [];
-    return roomStr.split('+').map(r => r.trim()).filter(r => r !== "");
+    // ใช้ Regular Expression แยกด้วยลูกน้ำ หรือ เครื่องหมายบวก ก็ได้
+    return roomStr.split(/[,+]/).map(r => r.trim()).filter(r => r !== "");
 };
 window.showLoader = () => {
     const loader = document.getElementById('pageLoader');
