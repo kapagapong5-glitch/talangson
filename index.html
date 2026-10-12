@@ -1608,7 +1608,7 @@ window.saveTeacher = () => {
                 const periodsCount = parseInt(window.appState.config?.periods) || 9;
                 const newSchedule = {};
                 
-                // ก. เก็บตารางเดิมของ "ครูที่ถูกล็อก"
+                // ก. เก็บตารางเดิมของ "ครูที่ถูกล็อก" และคาบบังคับ
                 for (let key in window.appState.generatedSchedule) {
                     let tName = key.split('_')[0];
                     if (window.appState.lockedTeachers[tName]) newSchedule[key] = window.appState.generatedSchedule[key];
@@ -1657,12 +1657,18 @@ window.saveTeacher = () => {
                     }
                 });
 
-                // ง. จัดกลุ่มวิชา คำนวณภาระงาน
+                // ง. จัดกลุ่มวิชา คำนวณภาระงาน (แก้บั๊กคำนวณคาบนักเรียน)
                 let classGroups = {};
                 let teacherWorkloads = {};
                 let roomWorkloads = {}; 
                 const maxPeriodsPerRoom = (periodsCount - 1) * 5; 
                 
+                // สร้างตัวแปรห้องเรียนทั้งหมดเพื่อเตรียมนับคาบ
+                window.appState.teachers.forEach(t => {
+                    const rooms = t.rooms ? t.rooms.split(',').map(r => r.trim()).filter(r => r) : [];
+                    rooms.forEach(r => { if (roomWorkloads[r] === undefined) roomWorkloads[r] = 0; });
+                });
+
                 window.appState.teachers.forEach(t => {
                     const limit = (parseFloat(t.credit) || 0) * 2;
                     const roomsCount = t.rooms ? t.rooms.split(',').filter(r => r.trim()).length : 0;
@@ -1680,25 +1686,31 @@ window.saveTeacher = () => {
                                 room: room, type: type, limit: limit, workload: 0,
                                 label: `${t.subjName} ${room}`, isLocked: false
                             };
+                            // 🌟 แก้บั๊ก 1: บวกคาบวิชาปกติให้ห้องเรียน แค่ 1 ครั้ง ป้องกันบวกซ้ำจาก Co-teaching
+                            roomWorkloads[room] += limit; 
                         }
                         if (!classGroups[groupKey].teachers.includes(t.name)) {
                             classGroups[groupKey].teachers.push(t.name);
                             classGroups[groupKey].workload += teacherWorkloads[t.name];
-                            roomWorkloads[room] = (roomWorkloads[room] || 0) + limit;
                         }
                         if (window.appState.lockedTeachers[t.name]) classGroups[groupKey].isLocked = true;
                     });
                 });
 
-                // นับคาบกิจกรรมรวม
+                // 🌟 แก้บั๊ก 2: นับคาบกิจกรรม (Activity) แค่ 1 ครั้งต่อ 1 กิจกรรม ป้องกันการบวกเบิ้ลตามจำนวนครู
+                let uniqueActs = {};
                 for (let key in window.appState.fixedSchedule) {
                     let d = window.appState.fixedSchedule[key];
                     if(d.isActivity) {
-                        for(let room in roomWorkloads) { roomWorkloads[room] += 1; }
+                        let parts = key.split('_'); // [Teacher, Day, Period]
+                        let actKey = `${parts[1]}_${parts[2]}_${d.label}`;
+                        uniqueActs[actKey] = true;
                     }
                 }
+                let actCount = Object.keys(uniqueActs).length;
+                for(let room in roomWorkloads) { roomWorkloads[room] += actCount; }
 
-                // 🌟 ระบบจัดการคาบขาด: สร้าง "ครูจำลอง" แยกตามห้อง
+                // 🌟 สร้าง "ครูจำลอง" (คาบว่าง) แยกตามห้องเรียน
                 for (let room in roomWorkloads) {
                     let missing = maxPeriodsPerRoom - roomWorkloads[room];
                     if (missing > 0) {
@@ -1768,8 +1780,14 @@ window.saveTeacher = () => {
                     if (startP + length - 1 > periodsCount) return false;
                     for (let i = 0; i < length; i++) {
                         let p = startP + i;
+                        
+                        // 🌟 ป้องกันไม่ให้จัดวิชาเรียน หรือ คาบว่าง ไปทับใน "เวลาพักเที่ยงของนักเรียน" เด็ดขาด
+                        if (p === getLunchPeriod(group.room)) return false;
+                        
                         if (!isRoomFree(schedule, group.room, d, p)) return false;
-                        for (let tName of group.teachers) if (!isTeacherFree(schedule, tName, d, p)) return false;
+                        if (!group.isVirtualFree) { 
+                            for (let tName of group.teachers) if (!isTeacherFree(schedule, tName, d, p)) return false;
+                        }
                     }
                     return true;
                 };
@@ -1857,6 +1875,9 @@ window.saveTeacher = () => {
                                             
                                             for(let altP = 1; altP <= periodsCount; altP++) {
                                                 let newSlotValid = true;
+                                                // ไม่ทับพักเที่ยง
+                                                if (altP === getLunchPeriod(cls.room)) newSlotValid = false;
+                                                
                                                 if(!isRoomFree(window.appState.generatedSchedule, cls.room, altD, altP)) newSlotValid = false;
                                                 for(let occ of occupants) {
                                                     if(!occ.tName.startsWith('🎯') && !isTeacherFree(window.appState.generatedSchedule, occ.tName, altD, altP)) newSlotValid = false;
@@ -1885,6 +1906,9 @@ window.saveTeacher = () => {
                     if (!placed) {
                         for(let d=0; d<5; d++){
                             for(let p=1; p <= periodsCount - cls.length + 1; p++){
+                                // เลี่ยงพักเที่ยงเสมอ
+                                if (p === getLunchPeriod(cls.room)) continue;
+                                
                                 let teachersFree = true;
                                 for (let i = 0; i < cls.length; i++) {
                                     for(let tName of cls.teachers) {
