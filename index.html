@@ -1175,7 +1175,7 @@ function updateUI() {
         } else if (currentStep === 3 && window.renderStep3Grid) {
             window.renderStep3Grid();
         } else if (currentStep === 4 && window.appState?.generatedSchedule && Object.keys(window.appState.generatedSchedule).length > 0) {
-            if () ();
+            if (window.renderStep4Grid) window.renderStep4Grid();
         } else if (currentStep === 5) {
             if (window.renderRoomSettings) window.renderRoomSettings();
             if (window.appState?.generatedSchedule && Object.keys(window.appState.generatedSchedule).length > 0 && window.renderStep5Grid) {
@@ -1382,7 +1382,7 @@ function goToStep(step) {
                     
                     // สั่งวาดหน้าจอ 3, 4, 5 ใหม่ให้ว่างเปล่า
                     if (step === 1 || step >= 3) { if (window.renderStep3Grid) window.renderStep3Grid(); }
-                    if (step === 1 || step >= 4) { if () (); }
+                    if (step === 1 || step >= 4) { if (window.renderStep4Grid) window.renderStep4Grid(); }
                     if (step === 1 || step >= 5) { if (window.renderStep5Grid) window.renderStep5Grid(); }
                     
                     window.hideLoader();
