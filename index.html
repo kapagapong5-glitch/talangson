@@ -3002,7 +3002,7 @@ window.saveTeacher = () => {
             // วาดตารางของครูทุกคน
             uniqueTeacherNames.forEach(teacherName => {
                 let tableHTML = `
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+                    <div id="room_card_${teacherName}" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
                         <div class="flex justify-between items-center p-3 bg-indigo-50 border-b border-indigo-100">
                             <h4 class="font-bold text-indigo-900 text-sm flex items-center">
                                 <i class="fa-solid fa-chalkboard-user mr-2 text-indigo-500"></i>${teacherName}
@@ -3360,7 +3360,7 @@ window.saveTeacher = () => {
             return html;
         };
         // วาดหน้าจอ Preview
-        window.renderLivePreview = () => {
+        window.renderLivePreview = (refreshList = false) => {
             const container = document.getElementById('previewContainer');
             if(!container) return;
             const exportData = window.buildExportData();
@@ -3377,26 +3377,43 @@ window.saveTeacher = () => {
                 showTeachRoom: document.getElementById('chkTeachRoom')?.checked ?? true,
                 showTeacherName: document.getElementById('chkTeacherName')?.checked ?? true,
             };
+
+            // 🌟 สร้างรายชื่อลงใน Dropdown ค้นหา
+            if (refreshList) {
+                if (currentExportTab === 'teacher') window.previewItemsList = Object.keys(exportData.teachers).sort();
+                else if (currentExportTab === 'student') window.previewItemsList = Object.keys(exportData.students).sort();
+                else if (currentExportTab === 'room') window.previewItemsList = Object.keys(exportData.rooms).sort();
+                
+                const sel = document.getElementById('previewSelector');
+                if(sel) {
+                    sel.innerHTML = '';
+                    window.previewItemsList.forEach((item, idx) => {
+                        let dName = (currentExportTab === 'teacher' && !config.showPrefix) ? window.getShortTeacherName(item) : item;
+                        sel.innerHTML += `<option value="${idx}">${dName}</option>`;
+                    });
+                }
+                currentPreviewIndex = 0;
+            }
+
             let previewHTML = "";
-            if (currentExportTab === 'teacher') {
-                const firstTeacher = Object.keys(exportData.teachers)[0];
-                if(firstTeacher) {
-                    let titleName = config.showPrefix ? firstTeacher : window.getShortTeacherName(firstTeacher);
-                    previewHTML = window.createTableHTML(`ตารางสอน: ${titleName}`, firstTeacher, exportData.teachers[firstTeacher], config);
-                } else { previewHTML = "<div class='text-gray-400'>ไม่มีข้อมูลครู</div>"; }
-            } else if (currentExportTab === 'student') {
-                const firstRoom = Object.keys(exportData.students).sort()[0];
-                if(firstRoom) {
-                    previewHTML = window.createTableHTML(`ตารางเรียนนักเรียนชั้น ${firstRoom}`, firstRoom, exportData.students[firstRoom], config);
-                } else { previewHTML = "<div class='text-gray-400'>ไม่มีข้อมูลห้องเรียน (จัดรูปแบบเดินเรียนเท่านั้น หรือยังไม่ระบุห้อง)</div>"; }
-            } else if (currentExportTab === 'room') {
-                const firstRoom = Object.keys(exportData.rooms).sort()[0];
-                if(firstRoom) {
-                    previewHTML = window.createTableHTML(`ตารางการใช้ห้อง: ${firstRoom}`, firstRoom, exportData.rooms[firstRoom], config);
-                } else { previewHTML = "<div class='text-gray-400'>ไม่มีข้อมูลห้องสอนที่ถูกระบุไว้</div>"; }
+            let targetKey = window.previewItemsList[currentPreviewIndex];
+            
+            // 🌟 ดึงข้อมูลของหน้า (Index) ที่กำลังเลือกอยู่มาแสดง
+            if (targetKey) {
+                if (currentExportTab === 'teacher') {
+                    let titleName = config.showPrefix ? targetKey : window.getShortTeacherName(targetKey);
+                    previewHTML = window.createTableHTML(`ตารางสอน: ${titleName}`, targetKey, exportData.teachers[targetKey], config);
+                } else if (currentExportTab === 'student') {
+                    previewHTML = window.createTableHTML(`ตารางเรียนนักเรียนชั้น ${targetKey}`, targetKey, exportData.students[targetKey], config);
+                } else if (currentExportTab === 'room') {
+                    previewHTML = window.createTableHTML(`ตารางการใช้ห้อง: ${targetKey}`, targetKey, exportData.rooms[targetKey], config);
+                }
+            } else {
+                previewHTML = "<div class='text-gray-400 py-10'>ไม่มีข้อมูลในหมวดนี้</div>";
             }
             container.innerHTML = `<div class="w-full max-w-3xl">${previewHTML}</div>`;
         };
+    
         // ฟังก์ชันแปลงข้อมูลตารางเป็น Array ส่งให้ Google Docs
         window.buildDocData = (exportData, config) => {
             const periodsCount = parseInt(window.appState.config?.periods) || 9;
