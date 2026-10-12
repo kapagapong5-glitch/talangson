@@ -1825,8 +1825,14 @@ window.saveTeacher = () => {
                         if (k.endsWith(`_${d}_${p}`)) {
                             let v = schedule[k];
                             if (v && v.type === 'subject') {
-                                let rParts = v.label.split(' ');
-                                if ((rParts.length > 1 ? rParts[rParts.length - 1] : v.label) === room) return false;
+                                if (v.isActivity) {
+                                    let tName = k.split('_')[0];
+                                    let tObj = window.appState.teachers.find(t => t.name === tName);
+                                    if (tObj && tObj.rooms && tObj.rooms.includes(room)) return false;
+                                } else {
+                                    let rParts = v.label.split(' ');
+                                    if ((rParts.length > 1 ? rParts[rParts.length - 1] : v.label) === room) return false;
+                                }
                             }
                         }
                     }
@@ -1980,7 +1986,7 @@ window.saveTeacher = () => {
                                         cls.teachers.forEach(tName => {
                                             window.appState.generatedSchedule[`${tName}_${d}_${p+i}`] = { 
                                                 type: 'subject', label: cls.label, isAuto: true, subjCode: cls.subjCode, 
-                                                isVirtualFree: cls.isVirtualFree || false, isOverflow: true 
+                                                isVirtualFree: cls.isVirtualFree || false, isOverflow: (roomWorkloads[cls.room] > maxPeriodsPerRoom)
                                             };
                                         });
                                     }
@@ -3078,7 +3084,6 @@ window.saveTeacher = () => {
     // --- ระบบดาวน์โหลด & Live Preview (Step 6) ---
         
         let currentExportTab = 'teacher';
-
         // สกัดเฉพาะชื่อจริงครู (ตัดคำนำหน้าและนามสกุล)
         window.getShortTeacherName = (fullName) => {
             if(!fullName) return "";
@@ -3092,7 +3097,6 @@ window.saveTeacher = () => {
             }
             return name.split(' ')[0]; // เอาเฉพาะคำแรกก่อนเว้นวรรค
         };
-
         // สลับแท็บระบบดาวน์โหลด
         window.switchExportTab = (tab) => {
             currentExportTab = tab;
@@ -3108,7 +3112,6 @@ window.saveTeacher = () => {
                     btn.classList.remove('shadow-sm');
                 }
             });
-
             // ปรับกล่อง Checkbox ให้ตรงกับแท็บ
             const cbContainer = document.getElementById('cfgCheckboxes');
             if (tab === 'teacher') {
@@ -3123,7 +3126,7 @@ window.saveTeacher = () => {
                 cbContainer.innerHTML = `
                     <label class="flex items-center space-x-2"><input type="checkbox" id="chkSubjAbbr" checked onchange="renderLivePreview()" class="rounded text-indigo-600"><span>แสดงชื่อย่อวิชา</span></label>
                     <label class="flex items-center space-x-2"><input type="checkbox" id="chkSubjCode" checked onchange="renderLivePreview()" class="rounded text-indigo-600"><span>แสดงรหัสวิชา</span></label>
-                    <label class="flex items-center space-x-2"><input type="checkbox" id="chkTeacherShort" checked onchange="renderLivePreview()" class="rounded text-indigo-600"><span>แสดงเฉพาะชื่อจริงครู (ตัดคำนำ/นามสกุล)</span></label>
+                    <label class="flex items-center space-x-2"><input type="checkbox" id="chkTeacherName" checked onchange="renderLivePreview()" class="rounded text-indigo-600"><span>แสดงชื่อครูผู้สอน</span></label>
                     <label class="flex items-center space-x-2"><input type="checkbox" id="chkTeachRoom" checked onchange="renderLivePreview()" class="rounded text-indigo-600"><span>แสดงห้องที่เรียน</span></label>
                 `;
             } else if (tab === 'room') {
@@ -3136,69 +3139,72 @@ window.saveTeacher = () => {
             }
             renderLivePreview();
         };
-
-        // แปลงข้อมูลเพื่อสร้างตารางนักเรียนและตารางห้องเรียน
+        // แปลงข้อมูลเพื่อสร้างตาราง
         window.buildExportData = () => {
             const data = { teachers: {}, students: {}, rooms: {} };
             const schedule = window.appState.generatedSchedule || {};
             const assigned = window.appState.assignedRooms || {};
             const teacherDb = window.appState.teachers || [];
             
-            // หาข้อมูลรหัสวิชาของครู
             const tCodeMap = {};
             teacherDb.forEach(t => tCodeMap[t.name] = t.subjCode || "");
-
+            
             for (let key in schedule) {
                 let cellData = schedule[key];
-                if (cellData.type === 'subject') {
+                // 🌟 ข้าม "คาบว่างจำลอง" เพื่อให้มันกลายเป็นช่องว่างและถูกพิมพ์คำว่า "ว่าง" ในขั้นตอนถัดไป
+                if (cellData.type === 'subject' && !cellData.isVirtualFree) {
                     let [tName, d, p] = key.split('_');
                     let parts = cellData.label.split(' ');
                     
-                    // ปรับการดึงข้อมูลเพื่อแยกวิชาปกติ กับ คาบกิจกรรม
                     let subjAbbr = cellData.isActivity ? cellData.label : (parts.length > 1 ? parts.slice(0, -1).join(' ') : cellData.label); 
-                    let sRoom = cellData.isActivity ? "" : (parts.length > 1 ? parts[parts.length - 1] : ""); // ห้องนักเรียน
+                    let sRoom = cellData.isActivity ? "" : (parts.length > 1 ? parts[parts.length - 1] : "");
                     let subjCode = cellData.isActivity ? "" : (tCodeMap[tName] || "");
-                    let pRoom = assigned[key] || ""; // ห้องกายภาพ (สอนที่ไหน)
-
+                    let pRoom = assigned[key] || ""; 
                     let entry = { subjAbbr, subjCode, sRoom, pRoom, tName, isActivity: cellData.isActivity };
-
+                    
                     // 1. ตารางครู
                     if(!data.teachers[tName]) data.teachers[tName] = {};
                     data.teachers[tName][`${d}_${p}`] = entry;
-
+                    
                     // 2. ตารางนักเรียน
                     if (cellData.isActivity) {
-                        // ถ้าเป็นกิจกรรม ให้กระจายลงตารางนักเรียนตาม "ห้องที่ครูท่านนี้รับผิดชอบ"
                         let t = teacherDb.find(tx => tx.name === tName);
                         if (t && t.rooms) {
                             let tRooms = t.rooms.split(',').map(r => r.trim()).filter(r => r);
                             tRooms.forEach(room => {
                                 if(!data.students[room]) data.students[room] = {};
-                                // ก็อปปี้ entry แต่ระบุชื่อห้องนักเรียนเข้าไปด้วย
                                 data.students[room][`${d}_${p}`] = { ...entry, sRoom: room };
                             });
                         }
                     } else if (sRoom) {
-                        // ถ้าเป็นวิชาปกติ
                         if(!data.students[sRoom]) data.students[sRoom] = {};
-                        data.students[sRoom][`${d}_${p}`] = entry;
+                        // 🌟 ดักจับการสอนร่วม (Co-teaching)
+                        if(data.students[sRoom][`${d}_${p}`]) {
+                            data.students[sRoom][`${d}_${p}`].tName = "สอนร่วม";
+                        } else {
+                            data.students[sRoom][`${d}_${p}`] = { ...entry };
+                        }
                     }
-
-                    // 3. ตารางห้องเรียน (Physical Room)
+                    
+                    // 3. ตารางห้องเรียน
                     if (pRoom && pRoom !== "ลานกิจกรรม" && pRoom !== "สนาม" && pRoom !== "-") {
                         if(!data.rooms[pRoom]) data.rooms[pRoom] = {};
-                        data.rooms[pRoom][`${d}_${p}`] = entry;
+                        // 🌟 ดักจับการสอนร่วม (Co-teaching)
+                        if(data.rooms[pRoom][`${d}_${p}`]) {
+                            data.rooms[pRoom][`${d}_${p}`].tName = "สอนร่วม";
+                        } else {
+                            data.rooms[pRoom][`${d}_${p}`] = { ...entry };
+                        }
                     }
                 }
             }
             return data;
         };
-
+        
         // ฟังก์ชันวาดตาราง 1 อัน (ใช้ทั้ง Preview และ Print)
         window.createTableHTML = (title, targetKey, targetData, config) => {
             const periodsCount = parseInt(window.appState.config?.periods) || 9;
             const weekDays = ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.'];
-
             let html = `
             <div class="print-page-break bg-white border-2 border-black p-4 w-full mb-6 text-black" style="font-family: 'Prompt', sans-serif; page-break-inside: avoid; break-inside: avoid;">
                 <div class="text-center mb-3">
@@ -3215,7 +3221,6 @@ window.saveTeacher = () => {
                 html += `<th class="border border-black p-1"><div>คาบ ${p}</div><div class="text-[9px] font-normal">${timeStr}</div></th>`;
             }
             html += `</tr></thead><tbody>`;
-
             weekDays.forEach((day, dIdx) => {
                 html += `<tr><td class="border border-black p-1 font-bold bg-gray-50">${day}</td>`;
                 for(let p = 1; p <= periodsCount; p++) {
@@ -3230,28 +3235,25 @@ window.saveTeacher = () => {
                         } else if (config.tab === 'student') {
                             content += config.showSubjAbbr ? `<div class="font-bold text-[11px] leading-tight">${cell.subjAbbr}</div>` : '';
                             content += (config.showSubjCode && cell.subjCode) ? `<div class="text-[9px] leading-tight">${cell.subjCode}</div>` : '';
-                            
-                            // ไม่แสดงชื่อครูถ้าเป็นคาบกิจกรรม
-                            if (!cell.isActivity) {
-                                let tNameDisplay = config.showTeacherShort ? window.getShortTeacherName(cell.tName) : cell.tName;
+                            if (!cell.isActivity && config.showTeacherName) {
+                                let tNameDisplay = cell.tName === "สอนร่วม" ? "สอนร่วม" : window.getShortTeacherName(cell.tName);
                                 content += tNameDisplay ? `<div class="text-[10px] leading-tight text-gray-700">${tNameDisplay}</div>` : '';
                             }
-                            
-                            // แสดงห้องเฉพาะที่มีค่าและไม่ใช่ค่าว่าง
                             if (config.showTeachRoom && cell.pRoom && cell.pRoom !== "-" && cell.pRoom !== "ลานกิจกรรม") {
                                 content += `<div class="text-[9px] leading-tight mt-0.5 font-semibold">${cell.pRoom}</div>`;
                             }
                         } else if (config.tab === 'room') {
                             content += config.showSubjAbbr ? `<div class="font-bold text-[11px] leading-tight">${cell.subjAbbr}</div>` : '';
                             content += (config.showSubjCode && cell.subjCode) ? `<div class="text-[9px] leading-tight">${cell.subjCode}</div>` : '';
-                            
-                            // ไม่แสดงชื่อครูถ้าเป็นคาบกิจกรรม
-                            if (!cell.isActivity) {
-                                let tNameDisplayRoom = window.getShortTeacherName(cell.tName);
-                                content += config.showTeacherName ? `<div class="text-[10px] leading-tight text-gray-700 font-medium">${tNameDisplayRoom}</div>` : '';
+                            if (!cell.isActivity && config.showTeacherName) {
+                                let tNameDisplayRoom = cell.tName === "สอนร่วม" ? "สอนร่วม" : window.getShortTeacherName(cell.tName);
+                                content += `<div class="text-[10px] leading-tight text-gray-700 font-medium">${tNameDisplayRoom}</div>`;
                             }
                             content += config.showStudentRoom ? `<div class="font-bold text-[10px] leading-tight mt-0.5 bg-gray-100 rounded inline-block px-1 border border-gray-300 shadow-sm">${cell.sRoom}</div>` : '';
                         }
+                    } else {
+                        // 🌟 ดักให้ช่องที่ไม่มีเรียน แสดงคำว่า "ว่าง" เสมอ
+                        content = `<div class="text-gray-400 font-medium text-[10px]">ว่าง</div>`;
                     }
                     html += `<td class="border border-black p-1 h-14 align-middle">${content}</td>`;
                 }
@@ -3262,34 +3264,25 @@ window.saveTeacher = () => {
             html += `</div>`;
             return html;
         };
-
         // วาดหน้าจอ Preview
         window.renderLivePreview = () => {
             const container = document.getElementById('previewContainer');
             if(!container) return;
-
             const exportData = window.buildExportData();
             
-            // อ่านค่า Config
             const config = {
                 tab: currentExportTab,
                 schoolName: document.getElementById('cfgSchoolName').value,
                 year: document.getElementById('cfgYear').value,
                 footer: document.getElementById('cfgFooter').value,
-                // Teacher flags
                 showPrefix: document.getElementById('chkPrefix')?.checked ?? true,
-                // Common flags
                 showSubjAbbr: document.getElementById('chkSubjAbbr')?.checked ?? true,
                 showSubjCode: document.getElementById('chkSubjCode')?.checked ?? true,
                 showStudentRoom: document.getElementById('chkStudentRoom')?.checked ?? true,
                 showTeachRoom: document.getElementById('chkTeachRoom')?.checked ?? true,
-                // Student/Room flags
-                showTeacherShort: document.getElementById('chkTeacherShort')?.checked ?? true,
                 showTeacherName: document.getElementById('chkTeacherName')?.checked ?? true,
             };
-
             let previewHTML = "";
-
             if (currentExportTab === 'teacher') {
                 const firstTeacher = Object.keys(exportData.teachers)[0];
                 if(firstTeacher) {
@@ -3307,27 +3300,22 @@ window.saveTeacher = () => {
                     previewHTML = window.createTableHTML(`ตารางการใช้ห้อง: ${firstRoom}`, firstRoom, exportData.rooms[firstRoom], config);
                 } else { previewHTML = "<div class='text-gray-400'>ไม่มีข้อมูลห้องสอนที่ถูกระบุไว้</div>"; }
             }
-
             container.innerHTML = `<div class="w-full max-w-3xl">${previewHTML}</div>`;
         };
-
         // ฟังก์ชันแปลงข้อมูลตารางเป็น Array ส่งให้ Google Docs
         window.buildDocData = (exportData, config) => {
             const periodsCount = parseInt(window.appState.config?.periods) || 9;
             const weekDays = ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.'];
             let tables = [];
-
             let targetObj = {};
             if (currentExportTab === 'teacher') targetObj = exportData.teachers;
             else if (currentExportTab === 'student') targetObj = exportData.students;
             else if (currentExportTab === 'room') targetObj = exportData.rooms;
-
             Object.keys(targetObj).sort().forEach(keyName => {
                 let titleName = config.showPrefix ? keyName : window.getShortTeacherName(keyName);
                 let title = currentExportTab === 'teacher' ? `ตารางสอน: ${titleName}` :
                             currentExportTab === 'student' ? `ตารางเรียนนักเรียนชั้น ${keyName}` :
                             `ตารางการใช้ห้อง: ${keyName}`;
-
                 let rows = [];
                 let headerRow = ["วัน"];
                 for(let p = 1; p <= periodsCount; p++) {
@@ -3335,7 +3323,6 @@ window.saveTeacher = () => {
                     headerRow.push(`คาบ ${p}\n${timeStr}`);
                 }
                 rows.push(headerRow);
-
                 weekDays.forEach((day, dIdx) => {
                     let row = [day];
                     for(let p = 1; p <= periodsCount; p++) {
@@ -3350,8 +3337,8 @@ window.saveTeacher = () => {
                             } else if (currentExportTab === 'student') {
                                 if (config.showSubjAbbr) cellText += cell.subjAbbr + "\n";
                                 if (config.showSubjCode && cell.subjCode) cellText += cell.subjCode + "\n";
-                                if (!cell.isActivity) {
-                                    let tNameDisplay = config.showTeacherShort ? window.getShortTeacherName(cell.tName) : cell.tName;
+                                if (!cell.isActivity && config.showTeacherName) {
+                                    let tNameDisplay = cell.tName === "สอนร่วม" ? "สอนร่วม" : window.getShortTeacherName(cell.tName);
                                     if (tNameDisplay) cellText += tNameDisplay + "\n";
                                 }
                                 if (config.showTeachRoom && cell.pRoom && cell.pRoom !== "-" && cell.pRoom !== "ลานกิจกรรม") {
@@ -3360,29 +3347,30 @@ window.saveTeacher = () => {
                             } else if (currentExportTab === 'room') {
                                 if (config.showSubjAbbr) cellText += cell.subjAbbr + "\n";
                                 if (config.showSubjCode && cell.subjCode) cellText += cell.subjCode + "\n";
-                                if (!cell.isActivity) {
-                                    let tNameDisplayRoom = window.getShortTeacherName(cell.tName);
-                                    if (config.showTeacherName) cellText += tNameDisplayRoom + "\n";
+                                if (!cell.isActivity && config.showTeacherName) {
+                                    let tNameDisplayRoom = cell.tName === "สอนร่วม" ? "สอนร่วม" : window.getShortTeacherName(cell.tName);
+                                    cellText += tNameDisplayRoom + "\n";
                                 }
                                 if (config.showStudentRoom) cellText += cell.sRoom;
                             }
+                        } else {
+                            // 🌟 เขียนคำว่า "ว่าง" ใส่ช่องเปล่าตอนพรินต์เป็น PDF
+                            cellText = "ว่าง";
                         }
-                        row.push(cellText.trim()); // ตัดช่องว่างส่วนเกิน
+                        row.push(cellText.trim());
                     }
                     rows.push(row);
                 });
                 tables.push({ title: title, rows: rows });
             });
-
             return {
                 schoolName: config.schoolName,
                 year: config.year,
                 footer: config.footer,
                 tables: tables,
-                cols: config.cols // ส่งค่า 1 หรือ 2 คอลัมน์ให้ Google Docs ทราบ
+                cols: config.cols 
             };
         };
-
         // สั่งส่งข้อมูลไปสร้างตารางใน Docs ถ่ายเป็น PDF แล้วดาวน์โหลด
         window.executeDownload = () => {
             window.showLoader();
@@ -3398,23 +3386,16 @@ window.saveTeacher = () => {
                 showSubjCode: document.getElementById('chkSubjCode')?.checked ?? true,
                 showStudentRoom: document.getElementById('chkStudentRoom')?.checked ?? true,
                 showTeachRoom: document.getElementById('chkTeachRoom')?.checked ?? true,
-                showTeacherShort: document.getElementById('chkTeacherShort')?.checked ?? true,
                 showTeacherName: document.getElementById('chkTeacherName')?.checked ?? true,
-                cols: parseInt(document.getElementById('cfgColumns').value) || 1 // อ่านค่าจาก Dropdown
+                cols: parseInt(document.getElementById('cfgColumns').value) || 1
             };
-
             const payload = window.buildDocData(exportData, config);
-
-            // ⚠️ อัปเดต URL ของ Google Apps Script ที่คุณให้มาเรียบร้อยแล้ว
             const GAS_URL = "https://script.google.com/macros/s/AKfycbyimXdzLC6VYD_mcru9PvEGiGNb6P1F7PMj3FRktN8ZljUeOI93fjU6Shhbfj_h0H-U/exec"; 
-
             if(GAS_URL === "วาง_URL_จาก_APPS_SCRIPT_ตรงนี้") {
                 window.hideLoader();
                 showAppAlert('ข้อผิดพลาด', 'กรุณานำ URL จาก Google Apps Script มาใส่ในโค้ด JavaScript ก่อนครับ', 'error');
                 return;
             }
-
-            // สั่งยิง API แบบ text/plain เพื่อป้องกันปัญหา CORS
             fetch(GAS_URL, {
                 method: "POST",
                 headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -3424,7 +3405,6 @@ window.saveTeacher = () => {
             .then(data => {
                 window.hideLoader();
                 if (data.status === 'success') {
-                    // แปลง Base64 กลับเป็นไฟล์ PDF และเด้งดาวน์โหลด
                     const linkSource = `data:application/pdf;base64,${data.pdfBase64}`;
                     const downloadLink = document.createElement("a");
                     downloadLink.href = linkSource;
