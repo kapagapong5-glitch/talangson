@@ -777,10 +777,14 @@
                 <p class="text-xs text-gray-500 mb-4">กำหนดกิจกรรมที่จัดพร้อมกัน เช่น ลูกเสือ, เนตรนารี, โฮมรูม หรือประชุมครู (เลือกเฉพาะห้องและครูที่เกี่ยวข้องได้)</p>
                 
                 <div class="space-y-4 overflow-y-auto pr-1 flex-grow">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อกิจกรรม / วิชา</label>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อกิจกรรม / วิชา <span class="text-red-500">*</span></label>
                             <input type="text" id="batchActivityName" class="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-indigo-500 focus:border-indigo-500 text-sm" placeholder="เช่น ลูกเสือ, แนะแนว">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1">รหัสวิชา (เว้นว่างได้)</label>
+                            <input type="text" id="batchActivityCode" class="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-indigo-500 focus:border-indigo-500 text-sm" placeholder="เช่น ก21901">
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-1">สถานที่ (เว้นว่างได้)</label>
@@ -1882,13 +1886,17 @@ window.saveTeacher = () => {
                             let v = schedule[k];
                             if (v && v.type === 'subject') {
                                 if (v.isActivity) {
-                                    let tName = k.split('_')[0];
-                                    let tObj = window.appState.teachers.find(t => t.name === tName);
-                                    if (tObj && tObj.rooms) {
-                                        for (let tr of targetRooms) {
-                                            if (tObj.rooms.includes(tr)) return false;
-                                        }
+                                    let actRooms = [];
+                                    if (v.targetRooms !== undefined) {
+                                        actRooms = window.extractRooms(v.targetRooms);
+                                    } else {
+                                        let rParts = v.label.split(' ');
+                                        if (rParts.length > 1) actRooms = window.extractRooms(rParts[rParts.length - 1]);
                                     }
+                                    for (let tr of targetRooms) {
+                                        if (actRooms.includes(tr)) return false;
+                                    }
+                                
                                 } else {
                                     let rParts = v.label.split(' ');
                                     let existingRoomStr = rParts.length > 1 ? rParts[rParts.length - 1] : v.label;
@@ -2261,13 +2269,14 @@ window.saveTeacher = () => {
                                 extraTag = `<div class="bg-red-600 text-yellow-400 text-[11px] font-black px-1.5 py-0.5 rounded-bl-lg absolute top-0 right-0 shadow-md z-10 animate-bounce tracking-wide" style="text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0px 2px 2px rgba(0,0,0,0.5);">เกิน!</div>`;
                             }
                             
+                            let displayRoom = window.formatSmartRoomDisplay ? window.formatSmartRoomDisplay(room) : room;
                             cellContent = `
-                                <div class="w-full h-full p-0.5 cursor-move relative overflow-hidden" draggable="true" ondragstart="handleDragStart(event, '${key}')">
+                                <div class="w-full h-full p-0.5 cursor-move relative overflow-hidden" draggable="true" ondragstart="handleDragStart(event, '${key}')" title="${room ? 'ห้อง: ' + room : subj}">
                                     ${extraTag}
                                     <div class="${cardColor} hover:shadow-md rounded-md h-full w-full flex flex-col items-center justify-center transition py-1 px-0.5">
-                                        <span class="font-extrabold ${txtColor} text-[11px] leading-none mb-0.5">${subj}</span>
+                                        <span class="font-extrabold ${txtColor} text-[11px] leading-none mb-0.5 truncate max-w-full">${subj}</span>
                                         ${subjCode ? `<span class="text-[9px] text-gray-500 font-bold leading-none mb-0.5">${subjCode}</span>` : ''}
-                                        <span class="text-[10px] ${subColor} font-bold opacity-80 leading-none">${room}</span>
+                                        <span class="text-[10px] ${subColor} font-bold opacity-80 leading-none truncate max-w-full">${displayRoom}</span>
                                     </div>
                                 </div>`;
                         }
@@ -2498,34 +2507,107 @@ window.saveTeacher = () => {
             return roomStr.split(/[,+]/).map(r => r.trim()).filter(r => r !== "");
         };
 
+        // 🌟 ฟังก์ชันย่อชื่อห้องอัตโนมัติ (Smart Display) ป้องกันข้อความล้นตาราง
+        window.formatSmartRoomDisplay = (roomStr) => {
+            if (!roomStr) return "";
+            let rooms = window.extractRooms(roomStr);
+            if (rooms.length === 0) return "";
+            if (rooms.length === 1) return rooms[0];
+            if (rooms.length === 2) {
+                let p1 = rooms[0].split('/');
+                let p2 = rooms[1].split('/');
+                if (p1.length === 2 && p2.length === 2 && p1[0] === p2[0]) {
+                    return `${p1[0]}/${p1[1]}+${p2[1]}`; // เช่น ม.1/1+2
+                }
+                return `${rooms[0]}+${rooms[1]}`;
+            }
+
+            // เช็คว่าเลือกครบทุกห้องของโรงเรียนหรือไม่
+            let totalSchoolRooms = 0;
+            let gradeMap = {};
+            if (window.appState && window.appState.gradeLevels) {
+                window.appState.gradeLevels.forEach(g => {
+                    let c = parseInt(g.rooms) || 0;
+                    totalSchoolRooms += c;
+                    gradeMap[g.name] = c;
+                });
+            }
+            if (totalSchoolRooms > 0 && rooms.length === totalSchoolRooms) {
+                return "รวมทั้ง รร.";
+            }
+
+            // จัดกลุ่มตามระดับชั้น
+            let grouped = {};
+            rooms.forEach(r => {
+                let parts = r.split('/');
+                let gName = parts[0];
+                let rNum = parts[1] ? parseInt(parts[1]) : null;
+                if (!grouped[gName]) grouped[gName] = [];
+                if (rNum !== null && !isNaN(rNum)) grouped[gName].push(rNum);
+            });
+
+            let displayParts = [];
+            for (let g in grouped) {
+                let nums = grouped[g].sort((a, b) => a - b);
+                if (gradeMap[g] && nums.length === gradeMap[g] && gradeMap[g] > 1) {
+                    displayParts.push(`${g} (รวม)`);
+                } else if (nums.length > 2) {
+                    let isConsecutive = true;
+                    for (let i = 1; i < nums.length; i++) {
+                        if (nums[i] !== nums[i - 1] + 1) isConsecutive = false;
+                    }
+                    if (isConsecutive) {
+                        displayParts.push(`${g}/${nums[0]}-${nums[nums.length - 1]}`);
+                    } else {
+                        displayParts.push(`${g}/${nums.join(',')}`);
+                    }
+                } else if (nums.length > 0) {
+                    displayParts.push(`${g}/${nums.join('+')}`);
+                } else {
+                    displayParts.push(g);
+                }
+            }
+            let res = displayParts.join(', ');
+            return res.length > 18 ? `รวม ${rooms.length} ห้อง` : res;
+        };
+
         window.openBatchActivityModal = () => {
             if (!window.appState.teachers || window.appState.teachers.length === 0) {
                 showAppAlert('แจ้งเตือน', 'กรุณาเพิ่มข้อมูลครูผู้สอนในขั้นที่ 2 ก่อนครับ', 'warning');
                 return;
             }
             document.getElementById('batchActivityName').value = '';
+            if (document.getElementById('batchActivityCode')) document.getElementById('batchActivityCode').value = '';
             document.getElementById('batchActivityRoom').value = '';
             document.getElementById('checkAllRooms').checked = false;
             document.getElementById('checkAllDays').checked = false;
             document.getElementById('checkAllPeriods').checked = false;
             document.getElementById('checkAllTeachers').checked = false;
 
-            // 1. สร้าง Checkbox ห้องเรียนจาก gradeLevels ในขั้นที่ 1
+            // สร้าง Checkbox ห้องเรียน แยกตามระดับชั้น พร้อมปุ่มติ๊กทั้งระดับชั้น
             const rContainer = document.getElementById('batchRoomsContainer');
             rContainer.innerHTML = '';
             let allClassRooms = [];
             if (window.appState.gradeLevels) {
                 window.appState.gradeLevels.forEach(g => {
                     let roomCount = parseInt(g.rooms) || 0;
-                    for (let i = 1; i <= roomCount; i++) {
-                        let rName = `${g.name}/${i}`;
-                        allClassRooms.push(rName);
+                    if (roomCount > 0) {
                         rContainer.innerHTML += `
-                            <label class="flex items-center space-x-1.5 cursor-pointer p-1 rounded hover:bg-white transition">
-                                <input type="checkbox" value="${rName}" class="batch-room-check rounded text-indigo-600">
-                                <span class="truncate">${rName}</span>
-                            </label>
+                            <div class="col-span-full flex items-center justify-between bg-indigo-50/70 px-2.5 py-1 rounded border border-indigo-100 mt-1 first:mt-0">
+                                <span class="text-xs font-bold text-indigo-800">ระดับชั้น ${g.name}</span>
+                                <button type="button" onclick="toggleGradeBatchRooms('${g.name}')" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold underline">เลือก/ยกเลิก ${g.name} ทั้งหมด</button>
+                            </div>
                         `;
+                        for (let i = 1; i <= roomCount; i++) {
+                            let rName = `${g.name}/${i}`;
+                            allClassRooms.push(rName);
+                            rContainer.innerHTML += `
+                                <label class="flex items-center space-x-1.5 cursor-pointer p-1 rounded hover:bg-white transition">
+                                    <input type="checkbox" value="${rName}" data-grade="${g.name}" class="batch-room-check rounded text-indigo-600">
+                                    <span class="truncate">${rName}</span>
+                                </label>
+                            `;
+                        }
                     }
                 });
             }
@@ -2566,6 +2648,11 @@ window.saveTeacher = () => {
         window.toggleAllBatchRooms = (master) => {
             document.querySelectorAll('.batch-room-check').forEach(cb => cb.checked = master.checked);
         };
+        window.toggleGradeBatchRooms = (gradeName) => {
+            const boxes = document.querySelectorAll(`.batch-room-check[data-grade="${gradeName}"]`);
+            const allChecked = Array.from(boxes).every(cb => cb.checked);
+            boxes.forEach(cb => cb.checked = !allChecked);
+        };
         window.toggleAllBatchDays = (master) => {
             document.querySelectorAll('.batch-day-check').forEach(cb => cb.checked = master.checked);
         };
@@ -2577,9 +2664,10 @@ window.saveTeacher = () => {
         };
         window.applyBatchActivity = () => {
             const actName = document.getElementById('batchActivityName').value.trim();
+            const actCode = document.getElementById('batchActivityCode') ? document.getElementById('batchActivityCode').value.trim() : '';
             const actRoom = document.getElementById('batchActivityRoom').value.trim(); 
             if (!actName) {
-                showAppAlert('กรุณาระบุข้อมูล', 'กรุณากรอกชื่อกิจกรรม / คาบเรียน', 'warning');
+                showAppAlert('กรุณาระบุข้อมูล', 'กรุณากรอกชื่อกิจกรรม / วิชา', 'warning');
                 return;
             }
             const selectedRooms = [];
@@ -2607,7 +2695,6 @@ window.saveTeacher = () => {
                 return;
             }
 
-            // รวมห้องที่เลือกด้วยเครื่องหมาย + (เช่น ม.1/1+ม.1/2)
             const combinedRoomStr = selectedRooms.join('+');
             const displayLabel = combinedRoomStr ? `${actName} ${combinedRoomStr}` : actName;
 
@@ -2620,6 +2707,9 @@ window.saveTeacher = () => {
                         window.appState.fixedSchedule[key] = {
                             type: 'subject',
                             label: displayLabel,
+                            subjName: actName,
+                            subjCode: actCode,
+                            targetRooms: combinedRoomStr,
                             isActivity: true,
                             room: actRoom
                         };
@@ -2629,6 +2719,7 @@ window.saveTeacher = () => {
             });
             closeBatchActivityModal();
             renderStep3Grid();
+            if (window.calculateTotalPeriods) window.calculateTotalPeriods();
             window.autoSave();
             showAppAlert('สำเร็จ!', `ลงตารางกิจกรรม "${actName}" เรียบร้อยแล้ว (จำนวน ${countAssigned} ช่อง)`, 'success');
         };
@@ -2722,19 +2813,21 @@ window.saveTeacher = () => {
                                 cellClass += ' bg-red-50/50 hover:bg-red-100';
                             } else if (cellData.type === 'subject') {
                                 let parts = cellData.label.split(' ');
-                                let subj = parts.length > 1 ? parts.slice(0, -1).join(' ') : cellData.label;
-                                let room = parts.length > 1 ? parts[parts.length - 1] : "";
+                                let subj = cellData.subjName || (parts.length > 1 ? parts.slice(0, -1).join(' ') : cellData.label);
+                                let rawRoom = cellData.targetRooms !== undefined ? cellData.targetRooms : (parts.length > 1 ? parts[parts.length - 1] : "");
+                                let displayRoom = window.formatSmartRoomDisplay ? window.formatSmartRoomDisplay(rawRoom) : rawRoom;
+                                let subjCode = cellData.subjCode || "";
                                 
                                 // แยกสีถ้าเป็นคาบกิจกรรมให้เป็นสีม่วง
                                 let activityClass = cellData.isActivity ? "bg-purple-50 border-purple-200" : "bg-indigo-50 border-indigo-200";
                                 let textClass = cellData.isActivity ? "text-purple-700" : "text-indigo-700";
                                 let subClass = cellData.isActivity ? "text-purple-500" : "text-indigo-500";
-
                                 cellContent = `
-                                    <div class="w-full h-full p-1">
-                                        <div class="${activityClass} border rounded-md h-full flex flex-col items-center justify-center transition shadow-sm hover:shadow-md">
-                                            <span class="font-bold ${textClass} leading-tight text-xs">${subj}</span>
-                                            <span class="text-[10px] ${subClass} font-medium mt-0.5">${room}</span>
+                                    <div class="w-full h-full p-0.5" title="${rawRoom ? 'ห้อง: ' + rawRoom : subj}">
+                                        <div class="${activityClass} border rounded-md h-full flex flex-col items-center justify-center transition shadow-sm hover:shadow-md px-0.5">
+                                            <span class="font-bold ${textClass} leading-none text-[11px] mb-0.5 truncate max-w-full">${subj}</span>
+                                            ${subjCode ? `<span class="text-[9px] text-gray-500 font-bold leading-none mb-0.5">${subjCode}</span>` : ''}
+                                            ${displayRoom ? `<span class="text-[10px] ${subClass} font-semibold leading-none truncate max-w-full">${displayRoom}</span>` : ''}
                                         </div>
                                     </div>`;
                             }
@@ -3343,57 +3436,56 @@ window.saveTeacher = () => {
                     let [tName, d, p] = key.split('_');
                     let parts = cellData.label.split(' ');
                     
-                    let subjAbbr = cellData.isActivity ? cellData.label : (parts.length > 1 ? parts.slice(0, -1).join(' ') : cellData.label); 
-                    let sRoom = cellData.isActivity ? "" : (parts.length > 1 ? parts[parts.length - 1] : "");
-                    let subjCode = cellData.isActivity ? "" : (cellData.subjCode || tCodeMap[tName] || "");
-                    let pRoom = assigned[key] || ""; 
-                    let entry = { subjAbbr, subjCode, sRoom, pRoom, tName, isActivity: cellData.isActivity };
+                    let subjAbbr = cellData.subjName || (parts.length > 1 ? parts.slice(0, -1).join(' ') : cellData.label);
+                    let rawSRoom = cellData.targetRooms !== undefined ? cellData.targetRooms : (parts.length > 1 ? parts[parts.length - 1] : "");
                     
-                    // 1. ตารางครู
+                    // กรณีเป็นกิจกรรมรุ่นเก่าที่ไม่ได้แยกคำ
+                    if (cellData.isActivity && cellData.targetRooms === undefined && parts.length === 1) {
+                        subjAbbr = cellData.label;
+                        rawSRoom = "";
+                    }
+
+                    let displaySRoom = window.formatSmartRoomDisplay ? window.formatSmartRoomDisplay(rawSRoom) : rawSRoom;
+                    let subjCode = cellData.subjCode !== undefined ? cellData.subjCode : (cellData.isActivity ? "" : (tCodeMap[tName] || ""));
+                    let pRoom = assigned[key] || cellData.room || ""; 
+                    
+                    let entry = { subjAbbr, subjCode, sRoom: displaySRoom, rawSRoom, pRoom, tName, isActivity: cellData.isActivity };
+                    
+                    // 1. ตารางครู (แสดงชื่อห้องแบบย่อสวยงาม)
                     if(!data.teachers[tName]) data.teachers[tName] = {};
                     data.teachers[tName][`${d}_${p}`] = entry;
                     
                     // 2. ตารางนักเรียน
                     if (cellData.isActivity) {
-                        // กิจกรรม (Activity) ไม่ต้องสน +
-                        let t = teacherDb.find(tx => tx.name === tName);
-                        if (t && t.rooms) {
-                            let tRooms = window.extractRooms(t.rooms);
-                            tRooms.forEach(room => {
-                                if(!data.students[room]) data.students[room] = {};
-                                
-                                // ป้องกันการเขียนทับกันเอง หากครูหลายคนเข้ากิจกรรมห้องเดียวกันพร้อมกัน
-                                if (data.students[room][`${d}_${p}`] && data.students[room][`${d}_${p}`].isActivity) {
-                                    let existingTName = data.students[room][`${d}_${p}`].tName;
-                                    if (!existingTName.includes(tName)) {
-                                        data.students[room][`${d}_${p}`].tName = existingTName + ", " + tName;
-                                    }
-                                } else {
-                                    data.students[room][`${d}_${p}`] = { ...entry, sRoom: room };
-                                }
-                            });
+                        let actRooms = window.extractRooms(rawSRoom);
+                        // Fallback สำหรับข้อมูลกิจกรรมเก่าที่ไม่ได้ติ๊กห้อง ให้ดึงห้องจากครู
+                        if (actRooms.length === 0 && cellData.targetRooms === undefined) {
+                            let t = teacherDb.find(tx => tx.name === tName);
+                            if (t && t.rooms) actRooms = window.extractRooms(t.rooms);
                         }
-                    
-                    } else if (sRoom) {
-                        // 🌟 [แก้ไขบั๊ก Co-teaching และแยกห้องที่ +]
-                        // ดึงห้องออกมาเป็น Array
-                        let subRooms = window.extractRooms(sRoom);
-                        
+                        actRooms.forEach(room => {
+                            if(!data.students[room]) data.students[room] = {};
+                            if (data.students[room][`${d}_${p}`] && data.students[room][`${d}_${p}`].isActivity) {
+                                let existingTName = data.students[room][`${d}_${p}`].tName;
+                                if (!existingTName.includes(tName)) {
+                                    data.students[room][`${d}_${p}`].tName = existingTName + ", " + tName;
+                                }
+                            } else {
+                                data.students[room][`${d}_${p}`] = { ...entry, sRoom: room };
+                            }
+                        });
+                    } else if (rawSRoom) {
+                        let subRooms = window.extractRooms(rawSRoom);
                         subRooms.forEach(sr => {
                             if(!data.students[sr]) data.students[sr] = {};
-                            
-                            // ถ้ามีวิชาอื่นอยู่ในช่องนี้แล้วของนักเรียนห้อง sr
                             if(data.students[sr][`${d}_${p}`]) {
                                 let existingData = data.students[sr][`${d}_${p}`];
-                                // ถ้ารหัสวิชาเหมือนกัน และชื่อย่อเหมือนกัน ถือว่าเป็นวิชาเดียวกัน (Co-teaching)
                                 if (existingData.subjCode === subjCode && existingData.subjAbbr === subjAbbr) {
                                     data.students[sr][`${d}_${p}`].tName = "สอนร่วม";
                                 } else {
-                                    // ถ้าคนละวิชา แสดงว่ามีคาบชนกัน ให้แสดงวิชาใหม่ทับไปเลย
                                     data.students[sr][`${d}_${p}`] = { ...entry, sRoom: sr };
                                 }
                             } else {
-                                // ถ้าช่องยังว่าง ก็ใส่ข้อมูลปกติ
                                 data.students[sr][`${d}_${p}`] = { ...entry, sRoom: sr };
                             }
                         });
@@ -3416,15 +3508,13 @@ window.saveTeacher = () => {
                 }
             }
             
-            // 🌟 [แก้ไขบั๊กห้องผี (Ghost Room)]
-            // หลังจากสร้าง data.students เสร็จแล้ว ให้กรองห้องที่ถูกสร้างขึ้นมาผิดพลาดทิ้งไป
+            // กรองห้องผี (Ghost Room) ทิ้ง
             const validRooms = new Set();
-            window.appState.gradeLevels.forEach(g => {
+            (window.appState.gradeLevels || []).forEach(g => {
                 for(let i=1; i<= (parseInt(g.rooms) || 0); i++) {
                     validRooms.add(`${g.name}/${i}`);
                 }
             });
-            // หากห้องไหนไม่มีอยู่ใน validRooms (เช่น "ม.1/1+ม.1/2") ให้ลบทิ้ง
             for (let roomKey in data.students) {
                 if (!validRooms.has(roomKey) && validRooms.size > 0) {
                     delete data.students[roomKey];
