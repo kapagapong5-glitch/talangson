@@ -665,54 +665,43 @@
 
             <!-- พื้นที่ซ่อนสำหรับจับภาพพรินต์ -->
             <div id="printArea" class="hidden text-black bg-white"></div>
-            <!-- Modal ดูตารางทั้งหมด (ปรับปรุงใหม่ สวยงามและเลื่อนได้) -->
-            <div id="viewAllSchedulesModal" class="fixed inset-0 bg-gray-900 bg-opacity-80 hidden z-[150] flex items-center justify-center p-2 sm:p-4 backdrop-blur-sm transition-opacity">
-                <div class="bg-gray-50 rounded-2xl shadow-2xl w-full max-w-[98vw] h-[95vh] flex flex-col relative overflow-hidden border border-gray-200">
+            
+            <!-- Modal ดูตารางทั้งหมด (ภาพรวม) -->
+            <div id="viewAllSchedulesModal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-[150] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-7xl h-[95vh] flex flex-col relative overflow-hidden">
                     <!-- Header & Toolbar -->
-                    <div class="bg-white border-b border-gray-200 px-6 py-4 flex flex-col lg:flex-row justify-between items-start lg:items-center shrink-0 z-20 shadow-sm">
-                        <div class="mb-3 lg:mb-0">
-                            <h3 class="text-xl font-bold text-indigo-800 flex items-center" id="viewAllModalTitle">
-                                <i class="fa-solid fa-border-all text-indigo-600 mr-2"></i>ภาพรวมตารางทั้งหมด
+                    <div class="bg-white border-b border-gray-200 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center shrink-0 z-10 shadow-sm">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800 flex items-center" id="viewAllModalTitle">
+                                <i class="fa-solid fa-table text-indigo-600 mr-2"></i>ดูตารางทั้งหมด
                             </h3>
-                            <p class="text-xs text-gray-500 mt-1 font-medium">ตรวจสอบความเรียบร้อยของทุกตารางก่อนดาวน์โหลด (แสดงผลเหมือนตอนปริ้น)</p>
+                            <p class="text-xs text-gray-500 mt-1">ตรวจสอบความเรียบร้อยของทุกตารางก่อนดาวน์โหลด (เลื่อนลงเพื่อดูเพิ่มเติม)</p>
                         </div>
                         
-                        <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-                            <!-- มุมมองคอลัมน์ -->
-                            <div class="flex items-center space-x-2 px-3 py-2 bg-indigo-50 border border-indigo-100 rounded-lg shadow-sm">
-                                <label class="text-sm text-indigo-800 font-bold whitespace-nowrap">มุมมอง:</label>
-                                <select id="viewAllGridCols" class="border-0 focus:ring-0 text-sm bg-transparent cursor-pointer font-bold text-indigo-700 p-0" onchange="renderViewAllGrid()">
+                        <div class="flex flex-wrap items-center gap-3 mt-3 sm:mt-0">
+                            <!-- มุมมอง -->
+                            <div class="flex items-center space-x-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl shadow-sm">
+                                <label class="text-sm text-gray-600 font-medium">มุมมอง:</label>
+                                <select id="viewAllGridCols" class="border-0 focus:ring-0 text-sm bg-transparent cursor-pointer font-bold text-indigo-600" onchange="renderViewAllGrid()">
                                     <option value="1">1 ตาราง / แถว</option>
-                                    <option value="2">2 ตาราง / แถว</option>
-                                    <option value="3" selected>3 ตาราง / แถว</option>
-                                    <option value="4">4 ตาราง / แถว</option>
-                                </select>
-                            </div>
-                            <!-- ซูม (Zoom) ย่อขนาด -->
-                            <div class="flex items-center space-x-2 px-3 py-2 bg-white border border-gray-200 rounded-lg shadow-sm">
-                                <label class="text-sm text-gray-600 font-bold whitespace-nowrap"><i class="fa-solid fa-magnifying-glass-minus mr-1"></i> ย่อขนาด:</label>
-                                <select id="viewAllZoom" class="border-0 focus:ring-0 text-sm bg-transparent cursor-pointer font-bold text-gray-700 p-0" onchange="applyViewAllZoom()">
-                                    <option value="100">100%</option>
-                                    <option value="85" selected>85% (แนะนำ)</option>
-                                    <option value="70">70%</option>
-                                    <option value="60">60%</option>
+                                    <option value="2" selected>2 ตาราง / แถว</option>
+                                    <option value="3">3 ตาราง / แถว</option>
                                 </select>
                             </div>
                             <!-- ค้นหา -->
-                            <div class="flex items-center px-3 py-2 bg-white border border-gray-200 rounded-lg shadow-sm flex-grow lg:flex-grow-0">
+                            <div class="flex items-center px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl shadow-sm">
                                 <i class="fa-solid fa-magnifying-glass text-gray-400 mr-2"></i>
-                                <input type="text" id="searchViewAll" list="listViewAll" placeholder="ค้นหาตาราง..." class="border-0 focus:ring-0 text-sm p-0 w-full lg:w-32 bg-transparent text-gray-700 font-bold" onchange="searchAndScroll('viewall_card_', this.value); this.value='';">
+                                <input type="text" id="searchViewAll" list="listViewAll" placeholder="ค้นหาตาราง..." class="border-0 focus:ring-0 text-sm p-0 w-32 bg-transparent text-indigo-700 font-bold" onchange="searchAndScroll('viewall_card_', this.value); this.value='';">
                                 <datalist id="listViewAll"></datalist>
                             </div>
                             
-                            <!-- ปุ่มปิด -->
-                            <button class="bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded-lg transition shadow-md font-bold text-sm flex items-center ml-auto" onclick="closeViewAllModal()" title="ปิดหน้าต่าง">
-                                <i class="fa-solid fa-times mr-2"></i> ปิดหน้าต่าง
+                            <button class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2 rounded-xl transition shadow-sm ml-1 font-bold text-sm flex items-center" onclick="closeViewAllModal()" title="ปิดหน้าต่าง">
+                                <i class="fa-solid fa-times mr-1"></i> ปิด
                             </button>
                         </div>
                     </div>
-                    <!-- Content Grids (เพิ่ม min-h-0 เพื่อบังคับให้ Scrollbar ทำงานเสมอ) -->
-                    <div id="viewAllGridsContainer" class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-6 bg-gray-200/50 custom-scrollbar">
+                    <!-- Content Grids (ใส่ flex-1 min-h-0 เพื่อบังคับให้ Scrollbar ทำงานเสมอ) -->
+                    <div id="viewAllGridsContainer" class="flex-1 min-h-0 overflow-y-auto p-4 bg-gray-100/80">
                         <!-- ตารางจะถูกสร้างที่นี่ -->
                     </div>
                 </div>
@@ -3697,8 +3686,8 @@ window.saveTeacher = () => {
                 return;
             }
             
-            let titleText = currentExportTab === 'teacher' ? 'ตารางสอนครู' :
-                            currentExportTab === 'student' ? 'ตารางเรียนนักเรียน' : 'ตารางใช้ห้องเรียน';
+            let titleText = currentExportTab === 'teacher' ? 'ตารางครูผู้สอน' :
+                            currentExportTab === 'student' ? 'ตารางเรียนนักเรียน' : 'ตารางห้องเรียน';
             document.getElementById('viewAllModalTitle').innerHTML = `<i class="fa-solid fa-border-all text-indigo-600 mr-2"></i>ภาพรวม: ${titleText}`;
             
             const list = document.getElementById('listViewAll');
@@ -3721,9 +3710,8 @@ window.saveTeacher = () => {
             const container = document.getElementById('viewAllGridsContainer');
             if(!container) return;
             
-            const cols = document.getElementById('viewAllGridCols').value || 3; 
-            // กำหนด Grid ตามมุมมองที่เลือก
-            container.className = `flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-6 bg-gray-200/50 grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-${cols}`;
+            const cols = document.getElementById('viewAllGridCols').value || 2; 
+            container.className = `grid gap-6 p-2 grid-cols-1 xl:grid-cols-${cols}`;
             container.innerHTML = '';
             
             const exportData = window.buildExportData();
@@ -3754,19 +3742,19 @@ window.saveTeacher = () => {
                             currentExportTab === 'student' ? `ตารางเรียนนักเรียนชั้น ${keyName}` :
                             `ตารางการใช้ห้อง: ${keyName}`;
                 
-                // นำ tableHTML มาตัด mb-6 (margin-bottom) และขอบสีดำหนาๆ ออก เพื่อให้พอดีกับ Card สไตล์หน้า 4
                 let tableHTML = window.createTableHTML(title, keyName, targetObj[keyName], config);
-                tableHTML = tableHTML.replace(/mb-6/g, 'mb-0').replace(/border-2 border-black/g, 'border border-gray-300');
+                // ตัดขอบ margin-bottom ของกระดาษออกเพื่อให้พอดีกับการ์ด
+                tableHTML = tableHTML.replace(/mb-6/g, 'mb-0');
                 
                 let cardHTML = `
-                    <div id="viewall_card_${dName}" class="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden transition-all duration-300 flex flex-col hover:shadow-lg hover:border-indigo-400">
-                        <div class="flex justify-between items-center px-4 py-3 bg-indigo-600 border-b border-indigo-700">
-                            <h4 class="font-bold text-white text-sm flex items-center">
-                                <i class="fa-solid fa-file-pdf mr-2 text-indigo-200"></i>${dName}
+                    <div id="viewall_card_${dName}" class="bg-white rounded-2xl shadow-sm border-2 border-gray-200 overflow-hidden flex flex-col">
+                        <div class="flex justify-between items-center p-3 bg-indigo-50 border-b border-indigo-100">
+                            <h4 class="font-bold text-indigo-900 text-sm flex items-center">
+                                <i class="fa-solid fa-file-lines mr-2 text-indigo-500"></i>${dName}
                             </h4>
                         </div>
-                        <div class="overflow-x-auto p-4 flex-grow flex justify-center items-start bg-gray-50/50">
-                            <div class="w-full min-w-[650px] view-all-table-wrapper">
+                        <div class="overflow-x-auto p-4 bg-white flex-grow">
+                            <div class="w-full min-w-[700px]">
                                 ${tableHTML}
                             </div>
                         </div>
@@ -3774,22 +3762,9 @@ window.saveTeacher = () => {
                 `;
                 container.innerHTML += cardHTML;
             });
+        };        
 
-            // เรียกใช้ฟังก์ชันซูมขนาดตารางให้พอดีทันทีหลังจากสร้างเสร็จ
-            applyViewAllZoom();
-        };
 
-        // ฟังก์ชันใหม่: ใช้ CSS zoom เพื่อย่อขนาดตารางลงมา ทำให้ไม่คับจอและไม่เกิดช่องว่างด้านล่าง
-        window.applyViewAllZoom = () => {
-            const zoomSelect = document.getElementById('viewAllZoom');
-            if(!zoomSelect) return;
-            const scaleValue = zoomSelect.value + '%';
-            
-            document.querySelectorAll('.view-all-table-wrapper').forEach(el => {
-                el.style.zoom = scaleValue;
-            });
-        };
-    
         // ฟังก์ชันแปลงข้อมูลตารางเป็น Array ส่งให้ Google Docs
         window.buildDocData = (exportData, config) => {
             const periodsCount = parseInt(window.appState.config?.periods) || 9;
