@@ -3699,7 +3699,7 @@ window.saveTeacher = () => {
             });
             
             document.getElementById('viewAllSchedulesModal').classList.remove('hidden');
-            // 🌟 เพิ่มคำสั่ง: ล็อกหน้าเว็บด้านหลังไม่ให้เลื่อนเวลาเปิดป๊อปอัป
+            // ล็อกหน้าเว็บด้านหลัง ไม่ให้เลื่อน
             document.body.classList.add('overflow-hidden');
             
             renderViewAllGrid();
@@ -3707,7 +3707,7 @@ window.saveTeacher = () => {
 
         window.closeViewAllModal = () => {
             document.getElementById('viewAllSchedulesModal').classList.add('hidden');
-            // 🌟 เพิ่มคำสั่ง: ปลดล็อกหน้าเว็บด้านหลังเมื่อปิดป๊อปอัป
+            // ปลดล็อกหน้าเว็บด้านหลังเมื่อปิดป๊อปอัป
             document.body.classList.remove('overflow-hidden');
         };
 
@@ -3717,8 +3717,8 @@ window.saveTeacher = () => {
             
             const cols = document.getElementById('viewAllGridCols').value || 2; 
             
-            // 🌟 แก้ไขบั๊กตรงนี้: คงคำสั่ง flex-1 min-h-0 overflow-y-auto เอาไว้เพื่อสร้างแถบเลื่อนให้ป๊อปอัป
-            container.className = `flex-1 min-h-0 overflow-y-auto p-4 bg-gray-100/80 grid gap-6 grid-cols-1 xl:grid-cols-${cols}`;
+            // 🌟 แก้บั๊กกล่องแบน: เพิ่ม items-start และ content-start ป้องกันไม่ให้ Grid บีบตารางจนแฟบ
+            container.className = `flex-1 min-h-0 overflow-y-auto p-6 bg-gray-100/80 grid gap-6 grid-cols-1 xl:grid-cols-${cols} items-start content-start`;
             container.innerHTML = '';
             
             const exportData = window.buildExportData();
@@ -3750,18 +3750,18 @@ window.saveTeacher = () => {
                             `ตารางการใช้ห้อง: ${keyName}`;
                 
                 let tableHTML = window.createTableHTML(title, keyName, targetObj[keyName], config);
-                // ตัดขอบ margin-bottom ของกระดาษออกเพื่อให้พอดีกับการ์ด
                 tableHTML = tableHTML.replace(/mb-6/g, 'mb-0');
                 
+                // 🌟 แก้บั๊กกล่องแบน: ใช้ h-fit ให้กล่องสูงตามข้อมูลตารางจริงๆ โดยไม่โดนบีบ
                 let cardHTML = `
-                    <div id="viewall_card_${dName}" class="bg-white rounded-2xl shadow-sm border-2 border-gray-200 overflow-hidden flex flex-col">
+                    <div id="viewall_card_${dName}" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden h-fit">
                         <div class="flex justify-between items-center p-3 bg-indigo-50 border-b border-indigo-100">
                             <h4 class="font-bold text-indigo-900 text-sm flex items-center">
                                 <i class="fa-solid fa-file-lines mr-2 text-indigo-500"></i>${dName}
                             </h4>
                         </div>
-                        <div class="overflow-x-auto p-4 bg-white flex-grow">
-                            <div class="w-full min-w-[700px]">
+                        <div class="overflow-x-auto p-4 bg-white">
+                            <div class="min-w-[700px]">
                                 ${tableHTML}
                             </div>
                         </div>
