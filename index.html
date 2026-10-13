@@ -2276,7 +2276,7 @@ window.saveTeacher = () => {
                                     <div class="${cardColor} hover:shadow-md rounded-md h-full w-full flex flex-col items-center justify-center transition py-1 px-0.5">
                                         <span class="font-extrabold ${txtColor} text-[11px] leading-none mb-0.5 truncate max-w-full">${subj}</span>
                                         ${subjCode ? `<span class="text-[9px] text-gray-500 font-bold leading-none mb-0.5">${subjCode}</span>` : ''}
-                                        <span class="text-[10px] ${subColor} font-bold opacity-80 leading-none truncate max-w-full">${displayRoom}</span>
+                                        ${displayRoom ? `<span class="text-[10px] ${subColor} font-bold opacity-80 leading-none truncate max-w-full">${displayRoom}</span>` : ''}
                                     </div>
                                 </div>`;
                         }
@@ -2532,8 +2532,9 @@ window.saveTeacher = () => {
                     gradeMap[g.name] = c;
                 });
             }
+            // 🌟 ถ้าเลือกครบทั้งโรงเรียน ไม่ต้องแสดงข้อความห้องในตาราง
             if (totalSchoolRooms > 0 && rooms.length === totalSchoolRooms) {
-                return "รวมทั้ง รร.";
+                return "";
             }
 
             // จัดกลุ่มตามระดับชั้น
@@ -2549,8 +2550,9 @@ window.saveTeacher = () => {
             let displayParts = [];
             for (let g in grouped) {
                 let nums = grouped[g].sort((a, b) => a - b);
+                // 🌟 ถ้าครบทั้งระดับชั้น ให้แสดงแค่ชื่อระดับชั้น เช่น "ม.6"
                 if (gradeMap[g] && nums.length === gradeMap[g] && gradeMap[g] > 1) {
-                    displayParts.push(`${g} (รวม)`);
+                    displayParts.push(`${g}`);
                 } else if (nums.length > 2) {
                     let isConsecutive = true;
                     for (let i = 1; i < nums.length; i++) {
@@ -2568,9 +2570,9 @@ window.saveTeacher = () => {
                 }
             }
             let res = displayParts.join(', ');
-            return res.length > 18 ? `รวม ${rooms.length} ห้อง` : res;
+            return res.length > 18 ? `${rooms.length} ห้อง` : res;
         };
-
+    
         window.openBatchActivityModal = () => {
             if (!window.appState.teachers || window.appState.teachers.length === 0) {
                 showAppAlert('แจ้งเตือน', 'กรุณาเพิ่มข้อมูลครูผู้สอนในขั้นที่ 2 ก่อนครับ', 'warning');
@@ -3152,7 +3154,6 @@ window.saveTeacher = () => {
             container.innerHTML = '';
             
             if (!window.appState.assignedRooms) window.appState.assignedRooms = {};
-
             if (!window.appState.generatedSchedule || Object.keys(window.appState.generatedSchedule).length === 0) {
                 container.innerHTML = `
                     <div class="col-span-full flex flex-col items-center justify-center h-64 text-gray-400">
@@ -3161,7 +3162,6 @@ window.saveTeacher = () => {
                     </div>`;
                 return;
             }
-
             const periodsCount = parseInt(window.appState.config?.periods) || 9;
             
             // ดึงรายชื่อครูทุกคนแบบไม่ซ้ำ
@@ -3170,21 +3170,17 @@ window.saveTeacher = () => {
                 container.innerHTML = `<div class="col-span-full text-center text-gray-500 py-10">ไม่พบรายชื่อครูผู้สอน</div>`;
                 return;
             }
-
             const teacherSubjCodes = {};
             (window.appState.teachers || []).forEach(t => {
                 if (t && t.subjCode) teacherSubjCodes[t.name] = t.subjCode;
             });
-
             const weekDays = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'];
-
             // 🌟 อัปเดตรายชื่อครูใส่ในช่องค้นหา Datalist ของหน้า 5
             const l5 = document.getElementById('listStep5');
             if(l5) { 
                 l5.innerHTML = ''; 
                 uniqueTeacherNames.forEach(t => l5.innerHTML += `<option value="${t}">`); 
             }
-
             // วาดตารางของครูทุกคน
             uniqueTeacherNames.forEach(teacherName => {
                 let tableHTML = `
@@ -3229,26 +3225,25 @@ window.saveTeacher = () => {
                                     </div>`;
                             } else if (cellData.type === 'subject') {
                                 let parts = cellData.label.split(' ');
-                                let subjAbbr = parts.length > 1 ? parts.slice(0, -1).join(' ') : cellData.label; 
-                                let room = parts.length > 1 ? parts[parts.length - 1] : "";
-                                let subjCode = cellData.isActivity ? "" : (teacherSubjCodes[teacherName] || "");
-                                let pRoom = (window.appState.assignedRooms && window.appState.assignedRooms[key]) ? window.appState.assignedRooms[key] : "";
-
+                                let subjAbbr = cellData.subjName || (parts.length > 1 ? parts.slice(0, -1).join(' ') : cellData.label); 
+                                let rawRoom = cellData.targetRooms !== undefined ? cellData.targetRooms : (parts.length > 1 ? parts[parts.length - 1] : "");
+                                let displayRoom = window.formatSmartRoomDisplay ? window.formatSmartRoomDisplay(rawRoom) : rawRoom;
+                                
+                                let subjCode = cellData.subjCode !== undefined ? cellData.subjCode : (cellData.isActivity ? "" : (teacherSubjCodes[teacherName] || ""));
+                                let pRoom = (window.appState.assignedRooms && window.appState.assignedRooms[key]) ? window.appState.assignedRooms[key] : (cellData.room || "");
                                 let cardColor = cellData.isActivity ? "bg-purple-50 border-purple-200" : "bg-indigo-50 border-indigo-200";
                                 let txtColor = cellData.isActivity ? "text-purple-800" : "text-indigo-800";
-
                                 let roomBadge = pRoom 
                                     ? (pRoom === "-" 
                                         ? `<div class="bg-white/80 border border-dashed border-gray-400 rounded px-1.5 py-0.5 text-[10px] font-bold text-gray-400 cursor-pointer hover:border-indigo-500 hover:text-indigo-600 hover:bg-white w-11/12 text-center truncate transition" onclick="openRoomPrompt('${key}', '-')" title="คลิกเพื่อกำหนดห้อง">ไม่ระบุ</div>`
                                         : `<div class="bg-white border border-orange-300 rounded px-1.5 py-0.5 text-[10px] font-extrabold text-orange-600 cursor-pointer hover:bg-orange-50 hover:border-orange-500 w-11/12 text-center truncate transition shadow-sm" onclick="openRoomPrompt('${key}', '${pRoom}')" title="คลิกเพื่อแก้ไขห้อง">${pRoom}</div>`)
                                     : `<div class="bg-white/80 border border-dashed border-gray-400 rounded px-1.5 py-0.5 text-[10px] font-bold text-gray-400 cursor-pointer hover:border-indigo-500 hover:text-indigo-600 hover:bg-white w-11/12 text-center truncate transition" onclick="openRoomPrompt('${key}', '')" title="คลิกเพื่อกำหนดห้อง">+ ระบุห้อง</div>`;
-
                                 cellContent = `
-                                    <div class="w-full h-full p-0.5">
+                                    <div class="w-full h-full p-0.5" title="${rawRoom ? 'ห้อง: ' + rawRoom : subjAbbr}">
                                         <div class="${cardColor} border rounded-md h-full w-full flex flex-col items-center justify-center shadow-sm py-1 px-0.5">
-                                            <span class="font-extrabold ${txtColor} text-[11px] leading-none mb-0.5">${subjAbbr}</span>
+                                            <span class="font-extrabold ${txtColor} text-[11px] leading-none mb-0.5 truncate max-w-full">${subjAbbr}</span>
                                             ${subjCode ? `<span class="text-[9px] text-gray-500 font-bold leading-none mb-0.5">${subjCode}</span>` : ''}
-                                            <span class="text-[10px] ${txtColor} font-bold opacity-80 leading-none mb-1">${room}</span>
+                                            ${displayRoom ? `<span class="text-[10px] ${txtColor} font-bold opacity-80 leading-none mb-1 truncate max-w-full">${displayRoom}</span>` : '<div class="mb-0.5"></div>'}
                                             ${roomBadge}
                                         </div>
                                     </div>`;
@@ -3553,7 +3548,7 @@ window.saveTeacher = () => {
                         if (config.tab === 'teacher') {
                             content += config.showSubjAbbr ? `<div class="font-bold text-[11px] leading-tight">${cell.subjAbbr}</div>` : '';
                             content += (config.showSubjCode && cell.subjCode) ? `<div class="text-[9px] leading-tight">${cell.subjCode}</div>` : '';
-                            content += config.showStudentRoom ? `<div class="font-bold text-[10px] leading-tight">${cell.sRoom}</div>` : '';
+                            content += (config.showStudentRoom && cell.sRoom) ? `<div class="font-bold text-[10px] leading-tight">${cell.sRoom}</div>` : '';
                             content += (config.showTeachRoom && cell.pRoom && cell.pRoom !== "-") ? `<div class="text-[9px] leading-tight mt-0.5">(${cell.pRoom})</div>` : '';
                         } else if (config.tab === 'student') {
                             content += config.showSubjAbbr ? `<div class="font-bold text-[11px] leading-tight">${cell.subjAbbr}</div>` : '';
@@ -3672,7 +3667,7 @@ window.saveTeacher = () => {
                             if (currentExportTab === 'teacher') {
                                 if (config.showSubjAbbr) cellText += cell.subjAbbr + "\n";
                                 if (config.showSubjCode && cell.subjCode) cellText += cell.subjCode + "\n";
-                                if (config.showStudentRoom) cellText += cell.sRoom + "\n";
+                                if (config.showStudentRoom && cell.sRoom) cellText += cell.sRoom + "\n";
                                 if (config.showTeachRoom && cell.pRoom && cell.pRoom !== "-") cellText += `(${cell.pRoom})`;
                             } else if (currentExportTab === 'student') {
                                 if (config.showSubjAbbr) cellText += cell.subjAbbr + "\n";
@@ -3825,8 +3820,9 @@ window.saveTeacher = () => {
                     
                     if (data && data.type === 'subject') {
                         let parts = data.label.split(' ');
-                        let subj = parts.length > 1 ? parts.slice(0, -1).join(' ') : data.label; 
-                        let room = parts.length > 1 ? parts[parts.length - 1] : ""; 
+                        let subj = data.subjName || (parts.length > 1 ? parts.slice(0, -1).join(' ') : data.label); 
+                        let room = data.targetRooms !== undefined ? data.targetRooms : (parts.length > 1 ? parts[parts.length - 1] : ""); 
+                        let displayRoom = window.formatSmartRoomDisplay ? window.formatSmartRoomDisplay(room) : room;
                         
                         let subjCode = data.subjCode || "";
                         if (!subjCode && !data.isActivity) {
@@ -3844,13 +3840,12 @@ window.saveTeacher = () => {
                         }
                         
                         let clickAction = isSource ? `onclick="selectSwapCell('${key}', '${day}',${p}, '${subj}', '${room}')"` : ``;
-
                         content = `
-                            <div class="w-full h-full p-1" ${clickAction}>
-                                <div class="${cardColor} border rounded-md h-full flex flex-col items-center justify-center transition">
-                                    <span class="font-extrabold ${textColor} text-[11px] leading-tight">${subj}</span>
+                            <div class="w-full h-full p-1" ${clickAction} title="${room ? 'ห้อง: ' + room : subj}">
+                                <div class="${cardColor} border rounded-md h-full flex flex-col items-center justify-center transition px-0.5">
+                                    <span class="font-extrabold ${textColor} text-[11px] leading-tight truncate max-w-full">${subj}</span>
                                     ${subjCode ? `<span class="text-[9px] text-gray-500 font-bold leading-none my-0.5">${subjCode}</span>` : ''}
-                                    <span class="text-[10px] ${textColor} font-medium leading-none">${room}</span>
+                                    ${displayRoom ? `<span class="text-[10px] ${textColor} font-medium leading-none truncate max-w-full">${displayRoom}</span>` : ''}
                                 </div>
                             </div>`;
                     } else if (data && data.type === 'empty') {
