@@ -498,8 +498,10 @@
                                 <p class="text-[10px] text-gray-500 mt-1">* ระบบจะคำนวณแถวและตัดหน้าให้อัตโนมัติ</p>
                             </div>
                         </div>
-
-                        <button onclick="executeDownload()" class="w-full mt-6 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-lg transition flex items-center justify-center text-lg">
+                        <button onclick="openViewAllModal()" class="w-full mt-6 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-2.5 rounded-xl shadow-sm transition flex items-center justify-center text-sm border border-indigo-200">
+                            <i class="fa-solid fa-border-all mr-2"></i>ดูตารางทั้งหมด (ภาพรวม)
+                        </button>
+                        <button onclick="executeDownload()" class="w-full mt-3 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-lg transition flex items-center justify-center text-lg">
                             <i class="fa-solid fa-file-pdf mr-2"></i>สร้าง PDF
                         </button>
                     </div>
@@ -663,6 +665,47 @@
 
             <!-- พื้นที่ซ่อนสำหรับจับภาพพรินต์ -->
             <div id="printArea" class="hidden text-black bg-white"></div>
+            <!-- Modal ดูตารางทั้งหมด (เพิ่มใหม่) -->
+            <div id="viewAllSchedulesModal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-[150] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-7xl h-[95vh] flex flex-col relative overflow-hidden">
+                    <!-- Header & Toolbar -->
+                    <div class="bg-white border-b border-gray-200 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center shrink-0 z-10 shadow-sm">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800 flex items-center" id="viewAllModalTitle">
+                                <i class="fa-solid fa-table text-indigo-600 mr-2"></i>ดูตารางทั้งหมด
+                            </h3>
+                            <p class="text-xs text-gray-500 mt-1">ตรวจสอบความเรียบร้อยของทุกตารางก่อนดาวน์โหลด (แสดงผลเหมือนตอนปริ้น)</p>
+                        </div>
+                        
+                        <div class="flex flex-wrap items-center gap-3 mt-3 sm:mt-0">
+                            <!-- มุมมอง -->
+                            <div class="flex items-center space-x-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl shadow-sm">
+                                <label class="text-sm text-gray-600 font-medium">มุมมอง:</label>
+                                <select id="viewAllGridCols" class="border-0 focus:ring-0 text-sm bg-transparent cursor-pointer font-bold text-indigo-600" onchange="renderViewAllGrid()">
+                                    <option value="1">1 ตาราง / แถว</option>
+                                    <option value="2" selected>2 ตาราง / แถว</option>
+                                    <option value="3">3 ตาราง / แถว</option>
+                                    <option value="4">4 ตาราง / แถว</option>
+                                </select>
+                            </div>
+                            <!-- ค้นหา -->
+                            <div class="flex items-center px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl shadow-sm">
+                                <i class="fa-solid fa-magnifying-glass text-gray-400 mr-2"></i>
+                                <input type="text" id="searchViewAll" list="listViewAll" placeholder="ค้นหาตาราง..." class="border-0 focus:ring-0 text-sm p-0 w-32 bg-transparent text-indigo-700 font-bold" onchange="searchAndScroll('viewall_card_', this.value); this.value='';">
+                                <datalist id="listViewAll"></datalist>
+                            </div>
+                            
+                            <button class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2 rounded-xl transition shadow-sm ml-1 font-bold text-sm flex items-center" onclick="closeViewAllModal()" title="ปิดหน้าต่าง">
+                                <i class="fa-solid fa-times mr-1"></i> ปิด
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Content Grids -->
+                    <div id="viewAllGridsContainer" class="flex-grow overflow-y-auto p-4 bg-gray-100/80">
+                        <!-- ตารางจะถูกสร้างที่นี่ -->
+                    </div>
+                </div>
+            </div>
 
         </div>
 
@@ -3635,6 +3678,94 @@ window.saveTeacher = () => {
                 previewHTML = "<div class='text-gray-400 py-10'>ไม่มีข้อมูลในหมวดนี้</div>";
             }
             container.innerHTML = `<div class="w-full max-w-3xl">${previewHTML}</div>`;
+        };
+
+        // --- ฟังก์ชันสำหรับเปิดดูตารางทั้งหมด (View All) ---
+        window.openViewAllModal = () => {
+            if (!window.previewItemsList || window.previewItemsList.length === 0) {
+                showAppAlert('แจ้งเตือน', 'ยังไม่มีข้อมูลตารางให้แสดงผลครับ', 'warning');
+                return;
+            }
+            
+            // ตั้งชื่อหัวข้อตามแท็บที่ผู้ใช้กำลังดู
+            let titleText = currentExportTab === 'teacher' ? 'ตารางครูผู้สอน' :
+                            currentExportTab === 'student' ? 'ตารางเรียนนักเรียน' : 'ตารางห้องเรียน';
+            document.getElementById('viewAllModalTitle').innerHTML = `<i class="fa-solid fa-border-all text-indigo-600 mr-2"></i>ภาพรวม: ${titleText}`;
+            
+            // สร้าง Datalist สำหรับค้นหา
+            const list = document.getElementById('listViewAll');
+            list.innerHTML = '';
+            const configShowPrefix = document.getElementById('chkPrefix')?.checked ?? true;
+            window.previewItemsList.forEach(item => {
+                let dName = (currentExportTab === 'teacher' && !configShowPrefix) ? window.getShortTeacherName(item) : item;
+                list.innerHTML += `<option value="${dName}">`;
+            });
+            
+            document.getElementById('viewAllSchedulesModal').classList.remove('hidden');
+            renderViewAllGrid();
+        };
+
+        window.closeViewAllModal = () => {
+            document.getElementById('viewAllSchedulesModal').classList.add('hidden');
+        };
+
+        window.renderViewAllGrid = () => {
+            const container = document.getElementById('viewAllGridsContainer');
+            if(!container) return;
+            
+            const cols = document.getElementById('viewAllGridCols').value || 2; 
+            container.className = `grid gap-6 p-2 grid-cols-1 md:grid-cols-2 xl:grid-cols-${cols}`;
+            container.innerHTML = '';
+            
+            const exportData = window.buildExportData();
+            
+            // ดึงการตั้งค่าปุ่มเปิดปิด (Checkbox) ด้านซ้ายมือมาประยุกต์ใช้
+            const config = {
+                tab: currentExportTab,
+                schoolName: document.getElementById('cfgSchoolName').value,
+                year: document.getElementById('cfgYear').value,
+                footer: document.getElementById('cfgFooter').value,
+                showPrefix: document.getElementById('chkPrefix')?.checked ?? true,
+                showSubjAbbr: document.getElementById('chkSubjAbbr')?.checked ?? true,
+                showSubjCode: document.getElementById('chkSubjCode')?.checked ?? true,
+                showStudentRoom: document.getElementById('chkStudentRoom')?.checked ?? true,
+                showTeachRoom: document.getElementById('chkTeachRoom')?.checked ?? true,
+                showTeacherName: document.getElementById('chkTeacherName')?.checked ?? true,
+            };
+            
+            let targetObj = {};
+            if (currentExportTab === 'teacher') targetObj = exportData.teachers;
+            else if (currentExportTab === 'student') targetObj = exportData.students;
+            else if (currentExportTab === 'room') targetObj = exportData.rooms;
+
+            Object.keys(targetObj).sort().forEach(keyName => {
+                let dName = (currentExportTab === 'teacher' && !config.showPrefix) ? window.getShortTeacherName(keyName) : keyName;
+                
+                let titleName = config.showPrefix ? keyName : window.getShortTeacherName(keyName);
+                let title = currentExportTab === 'teacher' ? `ตารางสอน: ${titleName}` :
+                            currentExportTab === 'student' ? `ตารางเรียนนักเรียนชั้น ${keyName}` :
+                            `ตารางการใช้ห้อง: ${keyName}`;
+                
+                // ใช้ฟังก์ชันสร้างตารางเดียวกับ Live Preview และ PDF
+                let tableHTML = window.createTableHTML(title, keyName, targetObj[keyName], config);
+                
+                // นำตารางมาห่อด้วยการ์ด (Card) ให้สวยงาม และใส่รหัส viewall_card_ สำหรับระบบค้นหา
+                let cardHTML = `
+                    <div id="viewall_card_${dName}" class="bg-white rounded-2xl shadow-sm border-2 border-gray-200 overflow-hidden transition-all duration-300 flex flex-col h-full">
+                        <div class="flex justify-between items-center p-3 bg-indigo-50 border-b border-indigo-100">
+                            <h4 class="font-bold text-indigo-900 text-sm flex items-center">
+                                <i class="fa-solid fa-file-lines mr-2 text-indigo-500"></i>${dName}
+                            </h4>
+                        </div>
+                        <div class="overflow-x-auto p-3 bg-white flex-grow flex justify-center items-start">
+                            <div class="w-full min-w-[700px] transform origin-top left-0 scale-100 transition-transform">
+                                ${tableHTML}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += cardHTML;
+            });
         };
     
         // ฟังก์ชันแปลงข้อมูลตารางเป็น Array ส่งให้ Google Docs
