@@ -4129,7 +4129,12 @@ window.saveTeacher = () => {
 
                 gasProxyFetch({ action: 'loadSchedule' })
                     .then((res) => {
-                        if (res.success && res.data) {
+                        if (!res.success) {
+                            window.hideLoader();
+                            showAppAlert('โหลดข้อมูลไม่สำเร็จ', res.message || 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้', 'error');
+                            return;
+                        }
+                        if (res.data) {
                             window.appState = deepRestore(res.data);
                         } else {
                             window.appState = {
