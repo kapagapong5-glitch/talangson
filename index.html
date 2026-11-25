@@ -955,23 +955,18 @@
             </div>
         </div>
 
-    <!-- Firebase SDK (รูปแบบใช้งานผ่าน CDN ในไฟล์ HTML ธรรมดา) -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
-        import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyBeSKyXfcUnFU0KUwRLr9E7rZRQM9WaQ5o",
-            authDomain: "talangson-84a84.firebaseapp.com",
-            databaseURL: "https://talangson-84a84-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "talangson-84a84",
-            storageBucket: "talangson-84a84.firebasestorage.app",
-            messagingSenderId: "919766817681",
-            appId: "1:919766817681:web:8ffe7883df9282dc171830"
+    <!-- จัดการ State และระบบบันทึก (เชื่อมต่อผ่าน GAS Proxy) -->
+    <script>
+        // ฟังก์ชันป้องกัน XSS (แปลงอักขระพิเศษก่อนนำไปแสดงใน HTML)
+        window.escapeHtml = function(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
 
         // State ของแอปพลิเคชัน
         window.appState = {
@@ -986,17 +981,6 @@
             assignedRooms: {},
             roomMappingConfig: { classRooms: {}, teacherRooms: {} }
         };
-
-        // เก็บ Session การล็อกอิน
-        window.userSession = {
-            isLoggedIn: false,
-            school: "",
-            username: "",
-            role: "",
-            displayName: ""
-        };
-
-        const totalSteps = 8; // อัปเดตจำนวนขั้นรวม
 
         // ฟังก์ชันดึงข้อมูลจากหน้าจอเก็บลง State ก่อนบันทึก
         window.gatherData = function() {
@@ -1021,46 +1005,21 @@
             if(window.calculateTotalPeriods) window.calculateTotalPeriods();
         };
 
-        // ฟังก์ชัน Save เข้าฐานข้อมูล + กรองอักขระต้องห้ามของ Firebase
-        window.saveToFirebase = function() {
-            if(!window.userSession || !window.userSession.isLoggedIn || !window.userSession.school) return Promise.resolve();
-            
-            const sanitizeKey = (k) => String(k).replace(/\./g, '＿ดอท＿').replace(/\//g, '＿ทับ＿').replace(/#/g, '＿ชาร์ป＿').replace(/\$/g, '＿ดอล＿').replace(/\[/g, '＿วงเปิด＿').replace(/\]/g, '＿วงปิด＿');
-            const deepSanitize = (obj) => {
-                if (Array.isArray(obj)) return obj.map(deepSanitize);
-                if (obj !== null && typeof obj === 'object') {
-                    const newObj = {};
-                    for (let k in obj) { newObj[sanitizeKey(k)] = deepSanitize(obj[k]); }
-                    return newObj;
-                }
-                return obj;
-            };
-
-            return new Promise((resolve, reject) => {
-                try {
-                    const cleanState = deepSanitize(JSON.parse(JSON.stringify(window.appState)));
-                    set(ref(db, `${window.userSession.school}/scheduleData`), cleanState)
-                        .then(() => {
-                            const statusEl = document.getElementById('saveStatus');
-                            if(statusEl) statusEl.innerHTML = '<i class="fa-solid fa-check text-green-300"></i> บันทึกแล้ว';
-                            resolve();
-                        })
-                        .catch((error) => {
-                            console.error("Firebase Set Error:", error);
-                            const statusEl = document.getElementById('saveStatus');
-                            if(statusEl) statusEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-300"></i> บันทึกไม่สำเร็จ';
-                            reject(error);
-                        });
-                } catch(e) {
-                    console.error("Clean State Error:", e);
-                    reject(e);
-                }
-            });
-        };
-
         let saveTimeout;
+        window.hasUnsavedChanges = false;
+
+        // เตือนผู้ใช้หากกดรีเฟรชหรือปิดหน้าเว็บในขณะที่ autoSave ยังส่งข้อมูลไม่เสร็จ
+        window.addEventListener('beforeunload', (e) => {
+            if (window.hasUnsavedChanges && window.userSession?.isLoggedIn) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+
         window.autoSave = function() {
-            if(!window.userSession.isLoggedIn) return; 
+            if(!window.userSession || !window.userSession.isLoggedIn) return; 
+            if(window.userSession.role === 'user') return; // ครูทั่วไปไม่ต้องสั่งเซฟ
+            window.hasUnsavedChanges = true;
             clearTimeout(saveTimeout);
             const statusEl = document.getElementById('saveStatus');
             if(statusEl) statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
@@ -1068,13 +1027,13 @@
             saveTimeout = setTimeout(() => {
                 try {
                     if (window.gatherData) window.gatherData(); 
-                    window.saveToFirebase();
+                    if (window.saveToFirebase) window.saveToFirebase();
                 } catch(e) { console.error("AutoSave Error:", e); }
             }, 1000);
         };
 
         window.manualSave = function() {
-            if(!window.userSession.isLoggedIn) return;
+            if(!window.userSession || !window.userSession.isLoggedIn) return;
             clearTimeout(saveTimeout); 
             
             const statusEl = document.getElementById('saveStatus');
@@ -1085,7 +1044,7 @@
                 
                 Promise.race([
                     window.saveToFirebase(),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
                 ])
                 .then(() => {
                     showAppAlert('บันทึกสำเร็จ', 'บันทึกข้อมูลลงฐานข้อมูลเรียบร้อยแล้ว!', 'success');
@@ -1094,10 +1053,10 @@
                     console.error("Save error:", err);
                     if (err.message === 'timeout') {
                         if(statusEl) statusEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-yellow-400"></i> รอซิงค์...';
-                        showAppAlert('บันทึกสำเร็จ (รอการซิงค์)', 'บันทึกข้อมูลในเครื่องแล้ว แต่การเชื่อมต่อขัดข้อง ระบบจะพยายามส่งขึ้นคลาวด์อีกครั้ง', 'warning');
+                        showAppAlert('การเชื่อมต่อล่าช้า', 'เซิร์ฟเวอร์ตอบสนองช้า กรุณากดบันทึกใหม่อีกครั้ง', 'warning');
                     } else {
                         if(statusEl) statusEl.innerHTML = '<i class="fa-solid fa-circle-xmark text-red-500"></i> ล้มเหลว';
-                        showAppAlert('ข้อผิดพลาด', 'มีบางอย่างผิดปกติเกี่ยวกับข้อมูล (ระบบปฏิเสธการเซฟ)', 'error');
+                        showAppAlert('ข้อผิดพลาด', err.message || 'ระบบปฏิเสธการบันทึกข้อมูล', 'error');
                     }
                 });
             } catch(e) {
@@ -1105,55 +1064,6 @@
                 showAppAlert('ข้อผิดพลาด', 'มีข้อผิดพลาดในการประมวลผลข้อมูล กรุณารีเฟรชหน้าจอใหม่', 'error');
             }
         };
-
-        // ฟังก์ชันโหลดข้อมูลกลับมา + แปลงอักขระกลับคืน
-        window.loadDataFromFirebase = function() {
-            window.showLoader();
-            
-            const restoreKey = (k) => String(k).replace(/＿ดอท＿/g, '.').replace(/＿ทับ＿/g, '/').replace(/＿ชาร์ป＿/g, '#').replace(/＿ดอล＿/g, '$').replace(/＿วงเปิด＿/g, '[').replace(/＿วงปิด＿/g, ']');
-            const deepRestore = (obj) => {
-                if (Array.isArray(obj)) return obj.map(deepRestore);
-                if (obj !== null && typeof obj === 'object') {
-                    const newObj = {};
-                    for (let k in obj) { newObj[restoreKey(k)] = deepRestore(obj[k]); }
-                    return newObj;
-                }
-                return obj;
-            };
-
-            get(ref(db, `${window.userSession.school}/scheduleData`)).then((snapshot) => {
-                if (snapshot.exists()) {
-                    window.appState = deepRestore(snapshot.val());
-                } else {
-                    window.appState = {
-                        currentStep: 1, config: { periods: 9 }, periodTimes: [], gradeLevels: [], teachers: [],
-                        totalPeriodsRequired: 0, generatedSchedule: {}, fixedSchedule: {}, assignedRooms: {},
-                        roomMappingConfig: { classRooms: {}, teacherRooms: {} }
-                    };
-                    if (window.initDefaultUI) window.initDefaultUI();
-                    window.gatherData();
-                    window.saveToFirebase();
-                }
-                
-                if (window.userSession.role === 'user') {
-                    currentStep = 7; window.appState.currentStep = 7;
-                } else {
-                    currentStep = window.appState.currentStep || 1;
-                }
-                if (window.appState.config && window.appState.config.periods) {
-                    let pInput = document.getElementById('periodsPerDay');
-                    if(pInput) pInput.value = window.appState.config.periods;
-                }
-                if (window.restoreUIFromState) window.restoreUIFromState();
-                
-                window.hideLoader();
-                updateUI(); 
-            }).catch((err) => {
-                console.error("Firebase load error:", err);
-                window.hideLoader();
-            });
-        };
-        
     </script>
         
 <script>
@@ -1244,13 +1154,11 @@ function updateUI() {
             if (window.calculateTotalPeriods) window.calculateTotalPeriods();
         } else if (currentStep === 3 && window.renderStep3Grid) {
             window.renderStep3Grid();
-        } else if (currentStep === 4 && window.appState?.generatedSchedule && Object.keys(window.appState.generatedSchedule).length > 0) {
+        } else if (currentStep === 4) {
             if (window.renderStep4Grid) window.renderStep4Grid();
         } else if (currentStep === 5) {
             if (window.renderRoomSettings) window.renderRoomSettings();
-            if (window.appState?.generatedSchedule && Object.keys(window.appState.generatedSchedule).length > 0 && window.renderStep5Grid) {
-                window.renderStep5Grid();
-            }
+            if (window.renderStep5Grid) window.renderStep5Grid();
         } else if (currentStep === 6) {
             if (window.switchExportTab) window.switchExportTab(typeof currentExportTab !== 'undefined' ? currentExportTab : 'teacher');
         } else if (currentStep === 7) {
@@ -1616,7 +1524,6 @@ window.handleFileUpload = (event) => {
     reader.readAsArrayBuffer(file);
 };
 
-// ฟังก์ชันวาดตารางแสดงรายชื่อครู
 window.renderTeachers = () => {
     const tbody = document.getElementById('teacherTableBody');
     tbody.innerHTML = '';
@@ -1633,13 +1540,13 @@ window.renderTeachers = () => {
 
         tbody.innerHTML += `
         <tr class="hover:bg-blue-50 transition">
-            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${t.name}</td>
-            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${t.subjName}</td>
-            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${t.subjCode}</td>
-            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 text-center">${t.credit}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${escapeHtml(t.name)}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${escapeHtml(t.subjName)}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${escapeHtml(t.subjCode)}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 text-center">${escapeHtml(t.credit)}</td>
             <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-blue-600 text-center">${totalPeriods}</td>
             <td class="px-4 py-3 whitespace-nowrap text-center">${pTypeBadge}</td>
-            <td class="px-4 py-3 text-sm text-gray-500">${t.rooms}</td>
+            <td class="px-4 py-3 text-sm text-gray-500">${escapeHtml(t.rooms)}</td>
             <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                 <button onclick="editTeacher(${index})" class="text-indigo-600 hover:text-indigo-900 mr-3"><i class="fa-solid fa-edit"></i></button>
                 <button onclick="deleteTeacher(${index})" class="text-red-600 hover:text-red-900"><i class="fa-solid fa-trash"></i></button>
@@ -2175,7 +2082,7 @@ window.saveTeacher = () => {
         container.className = `grid gap-6 mt-2 p-2 grid-cols-1 xl:grid-cols-${cols}`;
         container.innerHTML = '';
         
-        if (!window.appState.generatedSchedule) {
+        if (!window.appState.generatedSchedule || Object.keys(window.appState.generatedSchedule).length === 0) {
             container.innerHTML = `
                 <div class="col-span-full flex flex-col items-center justify-center h-64 text-gray-400">
                     <i class="fa-solid fa-table-cells text-5xl mb-4 text-gray-300"></i>
@@ -4136,233 +4043,331 @@ window.saveTeacher = () => {
             renderSwapGrid('swapTargetGrid', tName, false);
         };
         
+// ==========================================
+        // ระบบ Authentication, GAS Proxy & User Management (Secure Scope)
         // ==========================================
-        // ระบบ Authentication & User Management (Google Sheet)
-        // ==========================================
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbywXETJV8w69bP0ImyAn_8Le9vWYKZ2iHy01pjIIT98Yg1ZHF6vJwh758ewse8TomZw/exec";
-
-        window.executeLogin = () => {
-            const user = document.getElementById('loginUsername').value.trim();
-            const pass = document.getElementById('loginPassword').value.trim();
-            const btn = document.getElementById('btnLogin');
-            const err = document.getElementById('loginError');
+        (function() {
+            const GAS_URL = "https://script.google.com/macros/s/AKfycbywXETJV8w69bP0ImyAn_8Le9vWYKZ2iHy01pjIIT98Yg1ZHF6vJwh758ewse8TomZw/exec";
             
-            if(!user || !pass) { err.innerText = "กรุณากรอกข้อมูลให้ครบถ้วน"; return; }
-            
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังตรวจสอบ...';
-            err.innerText = "";
+            // เก็บ Token และ Session ไว้ในตัวแปรส่วนตัว (Private) ป้องกันการแอบแก้ผ่าน Console
+            let _authToken = "";
+            let _session = { isLoggedIn: false, school: "", username: "", role: "", displayName: "" };
+            let _usersCache = []; // แคชรายชื่อผู้ใช้ในหน้า 8 เพื่อไม่ให้ฝังข้อมูลลงใน onclick HTML
 
-            fetch(GAS_URL, { 
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({ action: 'login', username: user, password: pass })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if(data.success) {
-                    window.userSession = {
-                        isLoggedIn: true,
-                        school: data.school,
-                        username: data.username,
-                        role: data.role,
-                        displayName: data.displayName
-                    };
-                    
-                    document.getElementById('loginScreen').classList.add('hidden');
-                    
-                    // แสดงชื่อผู้ใช้บน Navbar
-                    const navProfile = document.getElementById('userProfileNav');
-                    const navName = document.getElementById('navDisplayName');
-                    if(navProfile) navProfile.classList.remove('hidden');
-                    if(navName) navName.innerText = data.displayName;
-                    
-                    applyRoleRestrictions();
-                    window.loadDataFromFirebase();
-                } else {
-                    err.innerText = data.message;
-                    btn.innerHTML = 'เข้าสู่ระบบ';
-                }
-            }).catch(e => {
-                err.innerText = "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้";
-                btn.innerHTML = 'เข้าสู่ระบบ';
+            // เปิดให้โค้ดส่วนอื่นอ่านค่า window.userSession ได้อย่างเดียว (Read-only & Frozen)
+            Object.defineProperty(window, 'userSession', {
+                get: () => Object.freeze({ ..._session }),
+                set: () => { console.warn("ไม่อนุญาตให้แก้ไขข้อมูล Session โดยตรง"); },
+                configurable: false
             });
-        };
 
-        window.executeLogout = () => {
-            showAppConfirm("ต้องการออกจากระบบใช่หรือไม่?", () => {
-                // ล้าง Session
-                window.userSession = { isLoggedIn: false, school: "", username: "", role: "", displayName: "" };
-                
-                // ซ่อนปุ่มบน Navbar
-                const navProfile = document.getElementById('userProfileNav');
-                if(navProfile) navProfile.classList.add('hidden');
-                
-                // ล้างฟอร์มล็อกอินและรีเซ็ตปุ่ม (แก้ปุ่มค้าง)
-                document.getElementById('loginUsername').value = "";
-                document.getElementById('loginPassword').value = "";
-                document.getElementById('btnLogin').innerHTML = 'เข้าสู่ระบบ';
-                document.getElementById('loginScreen').classList.remove('hidden');
-                
-                // รีเซ็ตข้อมูลในหน่วยความจำ
-                window.appState = {
-                    currentStep: 1, config: { periods: 9 }, periodTimes: [], gradeLevels: [], teachers: [],
-                    totalPeriodsRequired: 0, generatedSchedule: {}, fixedSchedule: {}, assignedRooms: {},
-                    roomMappingConfig: { classRooms: {}, teacherRooms: {} }
-                };
-            });
-        };
-
-        window.applyRoleRestrictions = () => {
-            // ค้นหากล่องใหญ่ที่ครอบแถบ Stepper ทั้งหมด
-            const stepperContainer = document.querySelector('.step-indicator')?.closest('.mb-8');
-
-            if (window.userSession.role === 'user') {
-                // 1. ซ่อนแถบ Stepper ทั้งแถบสำหรับครูทั่วไป
-                if (stepperContainer) stepperContainer.classList.add('hidden');
-                
-                // 2. ซ่อนปุ่มต่างๆ ด้านล่าง
-                const btnSave = document.getElementById('btnSave');
-                const btnNext = document.getElementById('btnNext');
-                const btnPrev = document.getElementById('btnPrev');
-                if (btnSave) btnSave.classList.add('hidden');
-                if (btnNext) btnNext.classList.add('hidden');
-                if (btnPrev) btnPrev.classList.add('hidden');
-            } else {
-                // หากเป็น Admin / Superadmin
-                // 1. นำแถบ Stepper กลับมาแสดง
-                if (stepperContainer) stepperContainer.classList.remove('hidden');
-                
-                // 2. แสดงเมนู 1-6 ให้กดได้ปกติ
-                for (let i = 1; i <= 6; i++) {
-                    const ind = document.querySelector(`.step-indicator[onclick="goToStep(${i})"]`);
-                    if (ind) ind.classList.remove('invisible', 'pointer-events-none', 'hidden');
-                }
-                // 3. แสดงเมนูที่ 8 (จัดการผู้ใช้)
-                const nav8 = document.getElementById('navStep8');
-                if (nav8) nav8.classList.remove('hidden', 'invisible', 'pointer-events-none');
-            }
-        };
-    
-        // --- ฟังก์ชันสำหรับ Step 8 (ดึง แก้ไข ลบ ผู้ใช้) ---
-        window.loadUsersFromSheet = () => {
-            document.getElementById('userTableBody').innerHTML = '<tr><td colspan="5" class="py-10 text-gray-400"><i class="fa-solid fa-spinner fa-spin"></i> กำลังดึงข้อมูลผู้ใช้...</td></tr>';
-            
-            fetch(GAS_URL, { 
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({ action: 'getUsers', school: window.userSession.school })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if(data.success) {
-                    const tbody = document.getElementById('userTableBody');
-                    tbody.innerHTML = '';
-                    data.users.forEach(u => {
-                        let roleBadge = u.role === 'superadmin' ? '<span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">SuperAdmin</span>' :
-                                        u.role === 'admin' ? '<span class="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Admin</span>' :
-                                        '<span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">User</span>';
-                                        
-                        tbody.innerHTML += `
-                            <tr>
-                                <td class="px-4 py-2">${u.school}</td>
-                                <td class="px-4 py-2 font-bold">${u.username}</td>
-                                <td class="px-4 py-2">${u.displayName}</td>
-                                <td class="px-4 py-2">${roleBadge}</td>
-                                <td class="px-4 py-2">
-                                    <button onclick="editUser(${u.row}, '${u.school}', '${u.username}', '${u.password}', '${u.displayName}', '${u.role}')" class="text-blue-500 hover:text-blue-700 mr-3" ${u.role === 'superadmin' && window.userSession.role !== 'superadmin' ? 'disabled' : ''}><i class="fa-solid fa-edit"></i></button>
-                                    <button onclick="deleteUser(${u.row}, '${u.username}')" class="text-red-500 hover:text-red-700" ${u.role === 'superadmin' && window.userSession.role !== 'superadmin' ? 'disabled' : ''}><i class="fa-solid fa-trash"></i></button>
-                                </td>
-                            </tr>
-                        `;
-                    });
-                }
-            });
-        };
-
-        window.openUserModal = () => {
-            // ถ้าเป็น admin0 (ALL) ให้กรอกอักษรย่อก่อน แต่ถ้าเป็นแอดมินโรงเรียนให้ดึงมาเลย
-            let sc = window.userSession.school === 'ALL' ? prompt("ระบุอักษรย่อโรงเรียน (เช่น wny):") : window.userSession.school;
-            if(!sc) return; // ถ้ายกเลิก prompt ให้หยุดการทำงาน
-            
-            document.getElementById('uRow').value = "";
-            document.getElementById('uSchool').value = sc;
-            
-            // ตั้งค่า Prefix อัตโนมัติ และเคลียร์ช่อง Suffix
-            document.getElementById('uNamePrefix').innerText = sc + "-";
-            document.getElementById('uNameSuffix').value = "";
-            
-            document.getElementById('uPass').value = "1234";
-            document.getElementById('uDisplay').value = "";
-            document.getElementById('uRole').value = "user";
-            document.getElementById('userModalTitle').innerText = "เพิ่มผู้ใช้ใหม่";
-            document.getElementById('userModal').classList.remove('hidden');
-        };
-
-        window.editUser = (row, school, user, pass, display, role) => {
-            document.getElementById('uRow').value = row;
-            document.getElementById('uSchool').value = school;
-            
-            // ตัดคำนำหน้า (Prefix) ออกเวลาแสดงผลในช่องแก้ไข
-            document.getElementById('uNamePrefix').innerText = school + "-";
-            let suffix = user.startsWith(school + "-") ? user.substring(school.length + 1) : user;
-            document.getElementById('uNameSuffix').value = suffix;
-            
-            document.getElementById('uPass').value = pass;
-            document.getElementById('uDisplay').value = display;
-            document.getElementById('uRole').value = role;
-            document.getElementById('userModalTitle').innerText = "แก้ไขผู้ใช้";
-            document.getElementById('userModal').classList.remove('hidden');
-        };
-
-        window.saveUserToSheet = () => {
-            const row = document.getElementById('uRow').value;
-            const school = document.getElementById('uSchool').value;
-            
-            // นำ Prefix และ Suffix มาต่อกันก่อนบันทึก
-            const suffix = document.getElementById('uNameSuffix').value.trim();
-            const user = school + "-" + suffix;
-            
-            const pass = document.getElementById('uPass').value.trim();
-            const display = document.getElementById('uDisplay').value.trim();
-            const role = document.getElementById('uRole').value;
-            
-            if(!suffix || !pass || !display) return showAppAlert('แจ้งเตือน', 'กรุณากรอกข้อมูลให้ครบถ้วน', 'warning');
-            
-            const mode = row ? "edit" : "add";
-            document.getElementById('userModal').classList.add('hidden');
-            window.showLoader();
-
-            fetch(GAS_URL, { 
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    action: 'manageUser', mode: mode, row: row, school: school, 
-                    username: user, password: pass, role: role, displayName: display
-                })
-            })
-            .then(res => res.json())
-            .then(data => {
-                window.hideLoader();
-                if(data.success) { showAppAlert('สำเร็จ', data.message, 'success'); loadUsersFromSheet(); }
-            });
-        };
-        window.deleteUser = (row, username) => {
-            showAppConfirm(`ต้องการลบผู้ใช้ ${username} ใช่หรือไม่?`, () => {
-                window.showLoader();
-                
-                fetch(GAS_URL, { 
+            // ฟังก์ชันกลางสำหรับยิงคำขอไปที่ GAS พร้อมแนบ Token และดักกรณีเซสชันหมดอายุ
+            async function gasProxyFetch(payloadObj) {
+                const bodyParams = new URLSearchParams({ ...payloadObj, token: _authToken });
+                const res = await fetch(GAS_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({ action: 'manageUser', mode: 'delete', row: row })
+                    body: bodyParams
+                });
+                const data = await res.json();
+                if (data.sessionExpired) {
+                    window.hasUnsavedChanges = false;
+                    showAppAlert('เซสชันหมดอายุ', 'กรุณาเข้าสู่ระบบใหม่อีกครั้งเพื่อความปลอดภัย', 'warning');
+                    setTimeout(() => location.reload(), 1800);
+                    throw new Error('sessionExpired');
+                }
+                return data;
+            }
+
+            // ฟังก์ชัน Save ข้อมูลผ่าน GAS Proxy (แทนการต่อ Firebase ตรง)
+            window.saveToFirebase = function() {
+                if (!_session.isLoggedIn || !_session.school || _session.role === 'user') return Promise.resolve();
+
+                const sanitizeKey = (k) => String(k).replace(/\./g, '＿ดอท＿').replace(/\//g, '＿ทับ＿').replace(/#/g, '＿ชาร์ป＿').replace(/\$/g, '＿ดอล＿').replace(/\[/g, '＿วงเปิด＿').replace(/\]/g, '＿วงปิด＿');
+                const deepSanitize = (obj) => {
+                    if (Array.isArray(obj)) return obj.map(deepSanitize);
+                    if (obj !== null && typeof obj === 'object') {
+                        const newObj = {};
+                        for (let k in obj) { newObj[sanitizeKey(k)] = deepSanitize(obj[k]); }
+                        return newObj;
+                    }
+                    return obj;
+                };
+
+                try {
+                    const cleanState = deepSanitize(JSON.parse(JSON.stringify(window.appState)));
+                    return gasProxyFetch({ action: 'saveSchedule', data: JSON.stringify(cleanState) })
+                        .then((data) => {
+                            const statusEl = document.getElementById('saveStatus');
+                            if (data.success) {
+                                window.hasUnsavedChanges = false;
+                                if (statusEl) statusEl.innerHTML = '<i class="fa-solid fa-check text-green-300"></i> บันทึกแล้ว';
+                            } else {
+                                if (statusEl) statusEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-300"></i> บันทึกไม่สำเร็จ';
+                                throw new Error(data.message || "บันทึกไม่สำเร็จ");
+                            }
+                        });
+                } catch (e) {
+                    return Promise.reject(e);
+                }
+            };
+
+            // ฟังก์ชันโหลดข้อมูลผ่าน GAS Proxy (แทนการต่อ Firebase ตรง)
+            window.loadDataFromFirebase = function() {
+                window.showLoader();
+
+                const restoreKey = (k) => String(k).replace(/＿ดอท＿/g, '.').replace(/＿ทับ＿/g, '/').replace(/＿ชาร์ป＿/g, '#').replace(/＿ดอล＿/g, '$').replace(/＿วงเปิด＿/g, '[').replace(/＿วงปิด＿/g, ']');
+                const deepRestore = (obj) => {
+                    if (Array.isArray(obj)) return obj.map(deepRestore);
+                    if (obj !== null && typeof obj === 'object') {
+                        const newObj = {};
+                        for (let k in obj) { newObj[restoreKey(k)] = deepRestore(obj[k]); }
+                        return newObj;
+                    }
+                    return obj;
+                };
+
+                gasProxyFetch({ action: 'loadSchedule' })
+                    .then((res) => {
+                        if (res.success && res.data) {
+                            window.appState = deepRestore(res.data);
+                        } else {
+                            window.appState = {
+                                currentStep: 1, config: { periods: 9 }, periodTimes: [], gradeLevels: [], teachers: [],
+                                totalPeriodsRequired: 0, generatedSchedule: {}, fixedSchedule: {}, assignedRooms: {},
+                                roomMappingConfig: { classRooms: {}, teacherRooms: {} }
+                            };
+                            if (window.initDefaultUI) window.initDefaultUI();
+                            window.gatherData();
+                            if (_session.role !== 'user') window.saveToFirebase();
+                        }
+
+                        if (_session.role === 'user') {
+                            currentStep = 7; window.appState.currentStep = 7;
+                        } else {
+                            currentStep = window.appState.currentStep || 1;
+                        }
+                        if (window.appState.config && window.appState.config.periods) {
+                            let pInput = document.getElementById('periodsPerDay');
+                            if (pInput) pInput.value = window.appState.config.periods;
+                        }
+                        if (window.restoreUIFromState) window.restoreUIFromState();
+
+                        window.hideLoader();
+                        updateUI();
+                    })
+                    .catch((err) => {
+                        console.error("Proxy load error:", err);
+                        window.hideLoader();
+                    });
+            };
+
+            window.executeLogin = () => {
+                const user = document.getElementById('loginUsername').value.trim();
+                const pass = document.getElementById('loginPassword').value.trim();
+                const btn = document.getElementById('btnLogin');
+                const err = document.getElementById('loginError');
+
+                if (!user || !pass) { err.innerText = "กรุณากรอกข้อมูลให้ครบถ้วน"; return; }
+
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังตรวจสอบ...';
+                err.innerText = "";
+
+                fetch(GAS_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ action: 'login', username: user, password: pass })
                 })
                 .then(res => res.json())
                 .then(data => {
-                    window.hideLoader();
-                    if(data.success) { loadUsersFromSheet(); }
-                });
-            });
-        };
+                    if (data.success && data.token) {
+                        _authToken = data.token;
+                        _session = {
+                            isLoggedIn: true,
+                            school: data.school,
+                            username: data.username,
+                            role: data.role,
+                            displayName: data.displayName
+                        };
 
+                        document.getElementById('loginScreen').classList.add('hidden');
+                        const navProfile = document.getElementById('userProfileNav');
+                        const navName = document.getElementById('navDisplayName');
+                        if (navProfile) navProfile.classList.remove('hidden');
+                        if (navName) navName.innerText = data.displayName;
+
+                        applyRoleRestrictions();
+                        window.loadDataFromFirebase();
+                    } else {
+                        err.innerText = data.message || "เข้าสู่ระบบไม่สำเร็จ";
+                        btn.innerHTML = 'เข้าสู่ระบบ';
+                    }
+                }).catch(() => {
+                    err.innerText = "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้";
+                    btn.innerHTML = 'เข้าสู่ระบบ';
+                });
+            };
+
+            window.executeLogout = () => {
+                showAppConfirm("ต้องการออกจากระบบใช่หรือไม่?", () => {
+                    window.hasUnsavedChanges = false;
+                    const tokenToRevoke = _authToken;
+                    _authToken = "";
+                    _session = { isLoggedIn: false, school: "", username: "", role: "", displayName: "" };
+
+                    // แจ้งเซิร์ฟเวอร์ให้ยกเลิก Token ทันที แล้วรีโหลดหน้าเว็บล้างข้อมูลค้างทั้งหมด
+                    fetch(GAS_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({ action: 'logout', token: tokenToRevoke })
+                    }).finally(() => {
+                        location.reload();
+                    });
+                });
+            };
+
+            window.applyRoleRestrictions = () => {
+                const stepperContainer = document.querySelector('.step-indicator')?.closest('.mb-8');
+                if (_session.role === 'user') {
+                    if (stepperContainer) stepperContainer.classList.add('hidden');
+                    const btnSave = document.getElementById('btnSave');
+                    const btnNext = document.getElementById('btnNext');
+                    const btnPrev = document.getElementById('btnPrev');
+                    if (btnSave) btnSave.classList.add('hidden');
+                    if (btnNext) btnNext.classList.add('hidden');
+                    if (btnPrev) btnPrev.classList.add('hidden');
+                } else {
+                    if (stepperContainer) stepperContainer.classList.remove('hidden');
+                    for (let i = 1; i <= 6; i++) {
+                        const ind = document.querySelector(`.step-indicator[onclick="goToStep(${i})"]`);
+                        if (ind) ind.classList.remove('invisible', 'pointer-events-none', 'hidden');
+                    }
+                    const nav8 = document.getElementById('navStep8');
+                    if (nav8) nav8.classList.remove('hidden', 'invisible', 'pointer-events-none');
+                }
+            };
+
+            // --- ฟังก์ชันสำหรับ Step 8 (ไม่แสดงรหัสผ่าน + ป้องกัน XSS) ---
+            window.loadUsersFromSheet = () => {
+                document.getElementById('userTableBody').innerHTML = '<tr><td colspan="5" class="py-10 text-gray-400"><i class="fa-solid fa-spinner fa-spin"></i> กำลังดึงข้อมูลผู้ใช้...</td></tr>';
+
+                gasProxyFetch({ action: 'getUsers' })
+                    .then(data => {
+                        if (data.success) {
+                            _usersCache = data.users || [];
+                            const tbody = document.getElementById('userTableBody');
+                            tbody.innerHTML = '';
+                            _usersCache.forEach((u, idx) => {
+                                let roleBadge = u.role === 'superadmin' ? '<span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">SuperAdmin</span>' :
+                                                u.role === 'admin' ? '<span class="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Admin</span>' :
+                                                '<span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">User</span>';
+                                const disabledAttr = (u.role === 'superadmin' && _session.role !== 'superadmin') ? 'disabled class="opacity-30 cursor-not-allowed mr-3"' : '';
+
+                                tbody.innerHTML += `
+                                    <tr>
+                                        <td class="px-4 py-2">${escapeHtml(u.school)}</td>
+                                        <td class="px-4 py-2 font-bold">${escapeHtml(u.username)}</td>
+                                        <td class="px-4 py-2">${escapeHtml(u.displayName)}</td>
+                                        <td class="px-4 py-2">${roleBadge}</td>
+                                        <td class="px-4 py-2">
+                                            <button onclick="editUser(${idx})" class="text-blue-500 hover:text-blue-700 mr-3" ${disabledAttr}><i class="fa-solid fa-edit"></i></button>
+                                            <button onclick="deleteUser(${idx})" class="text-red-500 hover:text-red-700" ${disabledAttr}><i class="fa-solid fa-trash"></i></button>
+                                        </td>
+                                    </tr>
+                                `;
+                            });
+                        } else {
+                            showAppAlert('ข้อผิดพลาด', data.message || 'ไม่สามารถดึงข้อมูลผู้ใช้ได้', 'error');
+                        }
+                    }).catch(() => {});
+            };
+
+            window.openUserModal = () => {
+                let sc = _session.school === 'ALL' ? prompt("ระบุอักษรย่อโรงเรียน (เช่น wny):") : _session.school;
+                if (!sc) return;
+
+                document.getElementById('uRow').value = "";
+                document.getElementById('uSchool').value = sc;
+                document.getElementById('uNamePrefix').innerText = sc + "-";
+                document.getElementById('uNameSuffix').value = "";
+                const passInput = document.getElementById('uPass');
+                passInput.value = "1234";
+                passInput.placeholder = "ระบุรหัสผ่านเริ่มต้น";
+                document.getElementById('uDisplay').value = "";
+                document.getElementById('uRole').value = "user";
+                document.getElementById('userModalTitle').innerText = "เพิ่มผู้ใช้ใหม่";
+                document.getElementById('userModal').classList.remove('hidden');
+            };
+
+            window.editUser = (idx) => {
+                const u = _usersCache[idx];
+                if (!u) return;
+
+                document.getElementById('uRow').value = u.row;
+                document.getElementById('uSchool').value = u.school;
+                document.getElementById('uNamePrefix').innerText = u.school + "-";
+                let suffix = u.username.startsWith(u.school + "-") ? u.username.substring(u.school.length + 1) : u.username;
+                document.getElementById('uNameSuffix').value = suffix;
+
+                // เว้นว่างช่องรหัสผ่านเพื่อไม่เปิดเผยรหัสเดิม (กรอกเฉพาะตอนอยากเปลี่ยน)
+                const passInput = document.getElementById('uPass');
+                passInput.value = "";
+                passInput.placeholder = "เว้นว่างหากไม่เปลี่ยนรหัสผ่าน";
+
+                document.getElementById('uDisplay').value = u.displayName;
+                document.getElementById('uRole').value = u.role;
+                document.getElementById('userModalTitle').innerText = "แก้ไขผู้ใช้";
+                document.getElementById('userModal').classList.remove('hidden');
+            };
+
+            window.saveUserToSheet = () => {
+                const row = document.getElementById('uRow').value;
+                const school = document.getElementById('uSchool').value;
+                const suffix = document.getElementById('uNameSuffix').value.trim();
+                const user = school + "-" + suffix;
+                const pass = document.getElementById('uPass').value.trim();
+                const display = document.getElementById('uDisplay').value.trim();
+                const role = document.getElementById('uRole').value;
+                const mode = row ? "edit" : "add";
+
+                // ตอนเพิ่มใหม่ต้องกรอกรหัสผ่าน แต่ตอนแก้ไขเว้นว่างได้
+                if (!suffix || !display || (mode === "add" && !pass)) {
+                    return showAppAlert('แจ้งเตือน', 'กรุณากรอกข้อมูลให้ครบถ้วน', 'warning');
+                }
+
+                document.getElementById('userModal').classList.add('hidden');
+                window.showLoader();
+
+                gasProxyFetch({
+                    action: 'manageUser', mode: mode, row: row, school: school,
+                    username: user, password: pass, role: role, displayName: display
+                })
+                .then(data => {
+                    window.hideLoader();
+                    if (data.success) {
+                        showAppAlert('สำเร็จ', data.message, 'success');
+                        loadUsersFromSheet();
+                    } else {
+                        showAppAlert('ข้อผิดพลาด', data.message || 'บันทึกไม่สำเร็จ', 'error');
+                    }
+                }).catch(() => window.hideLoader());
+            };
+
+            window.deleteUser = (idx) => {
+                const u = _usersCache[idx];
+                if (!u) return;
+
+                showAppConfirm(`ต้องการลบผู้ใช้ ${u.username} ใช่หรือไม่?`, () => {
+                    window.showLoader();
+                    gasProxyFetch({ action: 'manageUser', mode: 'delete', row: u.row })
+                        .then(data => {
+                            window.hideLoader();
+                            if (data.success) loadUsersFromSheet();
+                            else showAppAlert('ข้อผิดพลาด', data.message || 'ลบไม่สำเร็จ', 'error');
+                        }).catch(() => window.hideLoader());
+                });
+            };
+        })();
 
         
     </script>
